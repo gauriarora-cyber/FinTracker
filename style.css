@@ -1,0 +1,120 @@
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #121212;
+    color: #f1f1f1;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .container {
+    max-width: 960px;
+    margin: auto;
+    padding: 20px;
+  }
+  
+  header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  
+  header img {
+    width: 40px;
+    vertical-align: middle;
+  }
+  
+  header h1 {
+    display: inline-block;
+    margin-left: 10px;
+    font-size: 2.2em;
+  }
+  
+  .tagline {
+    margin-top: 5px;
+    font-size: 1em;
+    color: #aaaaaa;
+  }
+  
+  .card {
+    background: #1e1e1e;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.4);
+  }
+  
+  input[type="text"] {
+    padding: 10px;
+    font-size: 16px;
+    width: 70%;
+    margin-right: 10px;
+    border-radius: 8px;
+    border: none;
+  }
+  
+  button {
+    padding: 10px 16px;
+    font-size: 16px;
+    background: #1f8ef1;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  
+  button:hover {
+    background: #0d6efd;
+  }
+  
+  #volatilityTag {
+    margin-top: 12px;
+    font-weight: bold;
+    font-size: 16px;
+    color: #ffc107;
+  }
+  
+  #recentList li {
+    display: inline-block;
+    margin: 5px;
+    background: #292929;
+    padding: 6px 12px;
+    border-radius: 6px;
+    color: #1f8ef1;
+    cursor: pointer;
+  }
+  
+  #recentList li:hover {
+    background: #444;
+  }
+  
+  #newsContainer div {
+    border-bottom: 1px solid #333;
+    padding: 10px 0;
+  }
+  
+  #newsContainer h4 {
+    margin: 0;
+    color: #f1f1f1;
+  }
+  
+  #newsContainer p {
+    margin: 5px 0;
+    color: #cccccc;
+  }
+  
+  #newsContainer a {
+    color: #1f8ef1;
+    text-decoration: none;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(120deg, #1f8ef1 10%, transparent 10.01%) repeat;
+    background-size: 200px 200px;
+    opacity: 0.03;
+    z-index: -1;
+  }
+    
