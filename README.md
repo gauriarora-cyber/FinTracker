@@ -1,5 +1,6 @@
 # FinTracker 📈
 **Built by Team Coder – Call2Code Hackathon**
+Live Demo: [https://fintracker-demo.netlify.app](https://fintracker-demo.netlify.app)
 
 FinTracker is a web app that lets users track stock prices, analyze volatility, and stay updated with the latest news—all in a sleek, dark-themed interface.
 
@@ -22,5 +23,15 @@ FinTracker is a web app that lets users track stock prices, analyze volatility, 
 4. Access recent searches for quick navigation.
 
 
+## 📸 Screenshots
+
+### 🏠 Home + Search
+![Home](https://github.com/gauriarora-cyber/FinTracker/blob/main/home.png)
+
+### 📈 Stock Chart
+![Chart](https://github.com/gauriarora-cyber/FinTracker/blob/main/chart%20.png)
+
+### 📰 News Headlines
+![News](https://github.com/gauriarora-cyber/FinTracker/blob/main/news.png)
 
 
