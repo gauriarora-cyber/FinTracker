@@ -11,9 +11,17 @@
     <body>
         <div class="container">
           <header>
+      
             <img src="https://img.icons8.com/ios-filled/50/FFFFFF/combo-chart.png" alt="logo" />
             <h1>FinTracker</h1>
             <p class="tagline">Live market insights at your fingertips</p>
+            <select id="themeSelect" onchange="changeTheme()">
+            <option value="default">🌚 Dark Mode</option>
+            <option value="light">🌞 Light Mode</option>
+            <option value="warm">🌅 Eye Comfort</option>
+            </select>
+
+
           </header>
       
           <div class="card search-box">
@@ -30,16 +38,35 @@
             <h3>🔁 Recently Searched</h3>
             <ul id="recentList"></ul>
           </div>
-      
+          
+          <div class="card" id="trending-section">
+           <h3>🔥 Trending Stocks</h3>
+           <ul id="trendingList"></ul> <!-- This is required -->
+          </div>
+
           <div class="card" id="news-section">
             <h3>📰 Related News</h3>
             <div id="newsContainer"></div>
           </div>
+          
         </div>
       
         <script src="script.js"></script>
+
+        <div id="google_translate_element" style="margin-top: 20px; text-align: center;"></div>
+
+<script type="text/javascript">
+  function googleTranslateElementInit() {
+    new google.translate.TranslateElement(
+      { pageLanguage: 'en' },
+      'google_translate_element'
+    );
+  }
+</script>
+
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
       </body>
       
 </body>
 </html>
-
