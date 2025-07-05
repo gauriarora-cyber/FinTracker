@@ -3,70 +3,92 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Market Pulse</title>
+  <title>FinTracker</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
-    <body>
-        <div class="container">
-          <header>
-      
-            <img src="https://img.icons8.com/ios-filled/50/FFFFFF/combo-chart.png" alt="logo" />
-            <h1>FinTracker</h1>
-            <p class="tagline">Live market insights at your fingertips</p>
-            <select id="themeSelect" onchange="changeTheme()">
-            <option value="default">🌚 Dark Mode</option>
-            <option value="light">🌞 Light Mode</option>
-            <option value="warm">🌅 Eye Comfort</option>
-            </select>
+  <!-- Hero / Landing Section -->
+  <header class="hero">
+    <img src="logo.png" alt="FinTracker Logo" style="width: 60px;" />
+    <h1 style="color: #1f8ef1;">FinTracker</h1>
+    <p>Your gateway to smarter stock decisions</p>
+    <div>
+      <input type="text" id="tickerInput" placeholder="Enter stock symbol (e.g. TSLA)" />
+      <button onclick="scrollAndSearch()">Search</button>
+    </div>
+    <div class="scroll-down">↓</div>
+  </header>
 
+  <!-- Main App Section -->
+  <section id="mainApp" style="display: none;">
+    <div class="container">
+      <header>
+        <img src="https://img.icons8.com/ios-filled/50/FFFFFF/combo-chart.png" alt="logo" />
+        <h1>FinTracker</h1>
+        <p class="tagline">Live market insights at your fingertips</p>
+        <select id="themeSelect" onchange="changeTheme()">
+          <option value="default">🌚 Dark Mode</option>
+          <option value="light">🌞 Light Mode</option>
+          <option value="warm">🌅 Eye Comfort</option>
+        </select>
+      </header>
 
-          </header>
-      
-          <div class="card search-box">
-            <input type="text" id="tickerInput" placeholder="Enter Stock Ticker (e.g., TSLA)" />
-            <button onclick="fetchStock()">Search</button>
-          </div>
-      
-          <div class="card" id="chart-section">
-            <canvas id="stockChart" width="600" height="300"></canvas>
-            <div id="volatilityTag"></div>
-          </div>
-      
-          <div class="card" id="recent-section">
-            <h3>🔁 Recently Searched</h3>
-            <ul id="recentList"></ul>
-          </div>
-          
-          <div class="card" id="trending-section">
-           <h3>🔥 Trending Stocks</h3>
-           <ul id="trendingList"></ul> <!-- This is required -->
-          </div>
+      <div class="card" id="chart-section">
+        <canvas id="stockChart" width="600" height="300"></canvas>
+        <div id="volatilityTag"></div>
+      </div>
 
-          <div class="card" id="news-section">
-            <h3>📰 Related News</h3>
-            <div id="newsContainer"></div>
-          </div>
-          
-        </div>
-      
-        <script src="script.js"></script>
+      <div class="card" id="recent-section">
+        <h3>🔁 Recently Searched</h3>
+        <ul id="recentList"></ul>
+      </div>
 
-        <div id="google_translate_element" style="margin-top: 20px; text-align: center;"></div>
+      <div class="card" id="trending-section">
+        <h3>🔥 Trending Stocks</h3>
+        <ul id="trendingList"></ul>
+      </div>
 
-<script type="text/javascript">
-  function googleTranslateElementInit() {
-    new google.translate.TranslateElement(
-      { pageLanguage: 'en' },
-      'google_translate_element'
-    );
-  }
-</script>
+      <div class="card" id="news-section">
+        <h3>📰 Related News</h3>
+        <div id="newsContainer"></div>
+      </div>
+    </div>
+  </section>
 
-<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+  <!-- Features Section -->
+  <section class="features">
+    <h2>Why FinTracker?</h2>
+    <div class="feature-grid">
+      <div class="feature">📊 Real-time Stock Charts</div>
+      <div class="feature">📰 Latest News & Sentiment</div>
+      <div class="feature">🎤 Text-to-Speech Accessibility</div>
+    </div>
+  </section>
 
-      </body>
-      
+  <!-- Footer -->
+  <footer style="text-align:center; padding:1rem; background:#111; color:gray;">
+    <p>Built by Team Coder | 
+      <a href="https://github.com/gauriarora-cyber/FinTracker" target="_blank">GitHub</a> | 
+      <a href="https://fintracker-demo.netlify.app/" target="_blank">Live Demo</a>
+    </p>
+  </footer>
+
+  <!-- Google Translate Widget -->
+  <div id="google_translate_element" style="margin-top: 20px; text-align: center;"></div>
+
+  <script type="text/javascript">
+    function googleTranslateElementInit() {
+      new google.translate.TranslateElement(
+        { pageLanguage: 'en' },
+        'google_translate_element'
+      );
+    }
+  </script>
+  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+  <!-- Main JS -->
+  <script src="script.js"></script>
 </body>
 </html>

@@ -3,6 +3,18 @@ const NEWS_API_KEY = 'e573787fa4ac411f9d617ab09371fdda'; // News API
 const chartEl = document.getElementById('stockChart').getContext('2d');
 let chart;
 
+function scrollAndSearch() {
+  const ticker = document.getElementById("tickerInput").value.trim();
+  if (!ticker) {
+    alert("Please enter a stock symbol!");
+    return;
+  }
+
+  fetchStock();
+  document.getElementById("mainApp").style.display = "block";
+  document.getElementById("mainApp").scrollIntoView({ behavior: "smooth" });
+}
+
 function fetchStock() {
   const ticker = document.getElementById("tickerInput").value.toUpperCase();
 
@@ -16,7 +28,6 @@ function fetchStock() {
   fetchNews(ticker);
 }
 
-
 function saveRecentSearch(ticker) {
   let recent = JSON.parse(localStorage.getItem("recent")) || [];
 
@@ -29,10 +40,10 @@ function saveRecentSearch(ticker) {
   renderRecentList();
 }
 
-
 function renderRecentList() {
   const list = document.getElementById("recentList");
   list.innerHTML = "";
+
   (JSON.parse(localStorage.getItem("recent")) || []).forEach(ticker => {
     const li = document.createElement("li");
     li.textContent = ticker;
@@ -51,6 +62,11 @@ async function getStockData(ticker) {
     const data = await res.json();
 
     const timeSeries = data["Time Series (Daily)"];
+    if (!timeSeries) {
+      alert("Failed to fetch stock data.");
+      return;
+    }
+
     const dates = Object.keys(timeSeries).slice(0, 5).reverse();
     const prices = dates.map(date => parseFloat(timeSeries[date]["4. close"]));
     const open = parseFloat(timeSeries[dates[0]]["1. open"]);
@@ -59,7 +75,7 @@ async function getStockData(ticker) {
     updateChart(dates, prices);
     updateVolatility(open, close);
   } catch (err) {
-    alert("Failed to fetch data.");
+    alert("Failed to fetch stock data.");
     console.error(err);
   }
 }
@@ -94,9 +110,6 @@ function updateVolatility(open, close) {
   else tag.textContent = "✔️ Stable";
 }
 
-renderRecentList();
-
-
 async function fetchNews(ticker) {
   const url = `https://newsapi.org/v2/everything?q=${ticker}&apiKey=${NEWS_API_KEY}&pageSize=5&sortBy=publishedAt`;
 
@@ -113,7 +126,6 @@ async function fetchNews(ticker) {
       return;
     }
 
-    // Loop through articles and display them
     articles.forEach(article => {
       const card = document.createElement("div");
       card.style.border = "1px solid #333";
@@ -130,12 +142,12 @@ async function fetchNews(ticker) {
 
       newsDiv.appendChild(card);
     });
-
   } catch (err) {
     console.error("News fetch failed", err);
     document.getElementById("newsContainer").innerHTML = "<p>Failed to load news.</p>";
   }
 }
+
 function speakText(text) {
   const speech = new SpeechSynthesisUtterance(text);
   speech.lang = 'en-US';
@@ -143,3 +155,33 @@ function speakText(text) {
   speech.pitch = 1;
   window.speechSynthesis.speak(speech);
 }
+
+// Initial load
+renderRecentList();
+function showTrendingStocks() {
+  const data = [
+    { ticker: "AAPL", companyName: "Apple Inc.", price: 189.59, changesPercentage: 1.23 },
+    { ticker: "TSLA", companyName: "Tesla Inc.", price: 254.12, changesPercentage: -0.67 },
+    { ticker: "NVDA", companyName: "NVIDIA Corp.", price: 789.24, changesPercentage: 3.05 },
+    { ticker: "AMZN", companyName: "Amazon.com Inc.", price: 134.77, changesPercentage: 0.45 },
+    { ticker: "GOOG", companyName: "Alphabet Inc.", price: 122.88, changesPercentage: -1.15 }
+  ];
+
+  const list = document.getElementById("trendingList");
+  list.innerHTML = "";
+
+  data.forEach(stock => {
+    const li = document.createElement("li");
+    li.textContent = `${stock.ticker} - ${stock.companyName} ($${stock.price})`;
+    li.style.cursor = "pointer";
+    li.style.color = "#1f8ef1";
+    li.style.marginBottom = "8px";
+    li.onclick = () => {
+      document.getElementById("tickerInput").value = stock.ticker;
+      fetchStock();
+    };
+    list.appendChild(li);
+  });
+}
+renderRecentList();
+showTrendingStocks();

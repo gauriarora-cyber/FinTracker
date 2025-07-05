@@ -169,3 +169,89 @@ body {
 body > .skiptranslate {
   display: none;
 }
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #121212;
+  color: #fff;
+}
+
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80vh;
+  background: linear-gradient(to bottom right, #1f1f1f, #0d0d0d);
+  text-align: center;
+  padding: 2rem;
+}
+
+.hero-content {
+  max-width: 600px;
+}
+
+.hero h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: #1f8ef1;
+}
+
+.hero p {
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  color: #ccc;
+}
+
+.hero input {
+  padding: 10px;
+  width: 60%;
+  border-radius: 5px;
+  border: none;
+  margin-right: 10px;
+}
+
+.hero button {
+  padding: 10px 15px;
+  background-color: #1f8ef1;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.hero button:hover {
+  background-color: #0f62fe;
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+.hero {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+.features {
+  text-align: center;
+  padding: 2rem;
+  background: #181818;
+  color: white;
+}
+.feature-grid {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 1rem;
+}
+.feature {
+  background: #222;
+  padding: 1rem;
+  border-radius: 10px;
+  width: 30%;
+}
