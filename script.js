@@ -200,41 +200,69 @@ async function fetchPrices(symbol) {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-/* News comes from GDELT (free, no key, works from the browser).
-   Alpha Vantage's News & Sentiment feed is now a paid-only endpoint.
-   GDELT has no sentiment score, so the AI model measures the mood. */
+/* NEWS — two free sources that need no key and work from the browser:
+   1. Hacker News search (Algolia): fast and reliable, links to the original articles
+   2. GDELT news database: wider coverage, but often busy, so used as a backup
+   (Alpha Vantage's News & Sentiment feed is now a paid-only endpoint.)
+   Neither source gives a sentiment score — the AI model measures the mood. */
 const COMPANY_NAMES = {
   AAPL: "Apple", MSFT: "Microsoft", TSLA: "Tesla", NVDA: "Nvidia", AMZN: "Amazon",
-  GOOGL: "Alphabet", GOOG: "Alphabet", META: "Meta", NFLX: "Netflix", IBM: "IBM",
+  GOOGL: "Google", GOOG: "Google", META: "Meta", NFLX: "Netflix", IBM: "IBM",
   AMD: "AMD", INTC: "Intel", ORCL: "Oracle", DIS: "Disney", NKE: "Nike", KO: "Coca-Cola",
 };
 
-const cleanTitle = (t) => t.replace(/\s+([,.:;!?'%])/g, "$1").replace(/\s+-\s+/g, " - ").replace(/\s+/g, " ").trim();
+const cleanTitle = (t) => t.replace(/\s+([,.:;!?'%])/g, "$1").replace(/\s+/g, " ").trim();
+const escapeRegex = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
+
+async function fetchWithTimeout(url, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try { return await fetch(url, { signal: ctrl.signal }); }
+  finally { clearTimeout(timer); }
+}
+
+async function newsFromHackerNews(name) {
+  const since = Math.floor(Date.now() / 1000) - 30 * 86400; // last 30 days
+  const url = "https://hn.algolia.com/api/v1/search_by_date?" + new URLSearchParams({
+    query: name, tags: "story", numericFilters: "created_at_i>" + since, hitsPerPage: "50",
+  });
+  const res = await fetchWithTimeout(url, 8000);
+  if (!res.ok) throw new Error("Hacker News search error " + res.status);
+  const data = await res.json();
+  return (data.hits || [])
+    .filter((h) => h.url && !/^(show|ask|tell) hn/i.test(h.title || ""))
+    .map((h) => ({ title: cleanTitle(h.title), url: h.url, source: hostOf(h.url), time: h.created_at }));
+}
+
+async function newsFromGdelt(name) {
+  const url = "https://api.gdeltproject.org/api/v2/doc/doc?query=" +
+    encodeURIComponent('"' + name + '" sourcelang:english') +
+    "&mode=artlist&format=json&sort=datedesc&timespan=7d&maxrecords=75";
+  const res = await fetchWithTimeout(url, 8000);
+  const text = await res.text();
+  if (!text.trim().startsWith("{")) throw new Error("GDELT busy");
+  return (JSON.parse(text).articles || [])
+    .map((a) => ({ title: cleanTitle(a.title || ""), url: a.url, source: a.domain, time: a.seendate }));
+}
 
 async function fetchNews(symbol) {
   const name = COMPANY_NAMES[symbol] || symbol;
-  const query = '"' + name + '" (stock OR shares OR investors OR earnings) sourcelang:english';
-  const url = "https://api.gdeltproject.org/api/v2/doc/doc?" + new URLSearchParams({
-    query, mode: "artlist", format: "json", sort: "datedesc", timespan: "14d", maxrecords: "75",
-  });
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("News service error (" + res.status + ")");
-  const text = await res.text();
-  if (!text.trim().startsWith("{")) throw new Error(text.slice(0, 120)); // GDELT sends plain-text errors
-  const data = JSON.parse(text);
-
-  // Keep headlines that actually mention the company, and drop duplicates
+  const pattern = new RegExp("\\b(" + escapeRegex(name) + "|" + escapeRegex(symbol) + ")\\b", "i");
   const seen = new Set();
-  const needles = [name.toLowerCase(), symbol.toLowerCase()];
-  return (data.articles || [])
-    .map((a) => ({ title: cleanTitle(a.title || ""), url: a.url, source: a.domain, time: a.seendate }))
-    .filter((a) => {
-      const key = a.title.toLowerCase();
-      if (!a.title || seen.has(key)) return false;
-      seen.add(key);
-      return needles.some((n) => new RegExp("\\b" + n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b").test(key));
-    })
-    .slice(0, 6);
+  const relevant = (list) => list.filter((a) => {
+    const key = a.title.toLowerCase();
+    if (!a.title || seen.has(key) || !pattern.test(a.title)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  let articles = [];
+  try { articles = relevant(await newsFromHackerNews(name)); } catch (e) { console.warn(e); }
+  if (articles.length < 3) {
+    try { articles = articles.concat(relevant(await newsFromGdelt(name))); } catch (e) { console.warn(e); }
+  }
+  return articles.slice(0, 6);
 }
 
 async function analyse(symbol) {
@@ -467,6 +495,7 @@ function setSentiment(avg, count) {
 
 function formatAvTime(t) {
   if (!t || t.length < 8) return "";
+  if (t.includes("-")) { const iso = new Date(t); return isNaN(iso) ? "" : iso.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }); }
   const d = new Date(t.slice(0, 4) + "-" + t.slice(4, 6) + "-" + t.slice(6, 8) + "T" + (t.slice(9, 11) || "00") + ":" + (t.slice(11, 13) || "00") + ":00Z");
   return isNaN(d) ? "" : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
