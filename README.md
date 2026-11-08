@@ -18,6 +18,7 @@ It was built for the **Call2Code Hackathon** and includes **text-to-speech** so 
 | ✨ **Splash screen** | The FinTracker wordmark arrives as 5 slices from different 3D depths (CSS 3D transforms) and joins together. About 2 seconds, skippable, once per visit, skipped for "reduce motion" |
 | 🌦️ **Market weather report** | Turns trend, volatility and news mood into ☀️ Sunny, ⛅ Cloudy, 🌧️ Rainy or ⛈️ Stormy, with a plain-English explanation and a learning tip |
 | 🤖 **AI headline reader** | A DistilRoBERTa transformer fine-tuned on financial news runs **in the browser** with Transformers.js (ONNX + WebAssembly). It labels each headline positive, neutral or negative and averages them into the news mood. No server, and no data leaves the device |
+| 🗞️ **Market News tab** | Top business and tech headlines for the US or India, topic chips (stock market, Sensex & Nifty, crypto, IPOs) and search. The on-device AI can label each headline and show the overall news mood. Headlines come through a **Netlify Function**, so the NewsAPI key stays on the server |
 | 🌱 **Start Early tab** | For kids and first-time learners, with original animated characters (Penny the Piggy Bank, Captain Coin and Jarvis the Jar): money rules on a chalkboard, a guide to the weather report, a ₹ savings jar calculator showing compounding, a 5-question quiz and a word bank |
 | 📊 **Price trend (7D / 30D / 90D)** | Daily prices from Alpha Vantage, drawn with Chart.js. Shows period high, low, return and average volume |
 | ⚡ **Volatility score** | Standard deviation of daily returns, annualised (× √252). Labelled Low / Moderate / High |
@@ -37,6 +38,16 @@ The first time someone searches, FinTracker asks:
 
 > Free Alpha Vantage keys allow about 25 requests a day. Each search uses 1 request (news sources need no key).
 > Get a free key at https://www.alphavantage.co/support/#api-key
+
+## 🗞️ NewsAPI key (Market News tab)
+
+The key is **not** in the code. It lives in Netlify:
+
+1. Netlify → Site configuration → Environment variables → add `NEWS_API_KEY` (scope: Functions)
+2. Redeploy the site
+
+`netlify/functions/news.mjs` reads the key on the server, calls NewsAPI and returns the headlines to the page, so visitors never see the key.
+The Market News tab therefore works only on the Netlify site, not when `index.html` is opened directly.
 
 ## 🧠 Tech stack
 
@@ -58,6 +69,8 @@ ai.js        in-browser AI sentiment model (Transformers.js)
 decor.js     icons, weather icons, floating background per colour mode
 icon.svg     app logo / favicon
 learn.js     Start Early tab: calculator, quiz, word bank
+market-news.js  Market News tab (talks to the Netlify Function)
+netlify/functions/news.mjs  server-side NewsAPI proxy (keeps the key secret)
 screenshots/ README images
 ```
 

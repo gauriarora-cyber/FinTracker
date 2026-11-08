@@ -69,6 +69,7 @@
     </a>
     <div class="tabs" role="tablist">
       <button class="tab active" data-tab="tracker" role="tab"><i data-icon="chart"></i>Tracker</button>
+      <button class="tab" data-tab="news" role="tab"><i data-icon="news"></i>Market News</button>
       <button class="tab" data-tab="learn" role="tab"><i data-icon="sprout"></i>Start Early</button>
     </div>
     <div class="topbar-actions">
@@ -83,7 +84,7 @@
   </nav>
 
   <!-- =================== TRACKER TAB =================== -->
-  <div id="tab-tracker">
+  <div id="tab-tracker" class="tab-panel">
     <header class="hero">
       <span class="hero-pill"><b>New</b> On-device AI reads market headlines</span>
       <h1>Market insight,<br /><span class="accent">without the noise.</span></h1>
@@ -185,8 +186,50 @@
     </section>
   </div>
 
+  <!-- =================== MARKET NEWS TAB =================== -->
+  <div id="tab-news" class="tab-panel container hidden">
+    <header class="hero news-hero">
+      <span class="hero-pill"><b>Live</b> Headlines via NewsAPI</span>
+      <h1>Market News</h1>
+      <p class="sub">Today's business headlines from the US and India. Ask the on-device AI how the news feels overall.</p>
+    </header>
+
+    <section class="card news-controls">
+      <div class="seg" id="newsRegion" role="group" aria-label="Region">
+        <button type="button" data-country="us" class="active">US</button>
+        <button type="button" data-country="in">India</button>
+      </div>
+      <div class="chips news-topics" id="newsTopics">
+        <button type="button" class="chip active" data-category="business">Business</button>
+        <button type="button" class="chip" data-category="technology">Technology</button>
+        <button type="button" class="chip" data-q="stock market">Stock market</button>
+        <button type="button" class="chip" data-q="Sensex OR Nifty">Sensex &amp; Nifty</button>
+        <button type="button" class="chip" data-q="cryptocurrency">Crypto</button>
+        <button type="button" class="chip" data-q="IPO">IPOs</button>
+      </div>
+      <form id="newsSearch" class="search news-search" autocomplete="off">
+        <input type="text" id="newsQuery" placeholder="Search news, e.g. RBI interest rate" aria-label="Search news" />
+        <button type="submit">Search</button>
+      </form>
+    </section>
+
+    <section class="card news-ai">
+      <div>
+        <h3><i data-icon="ai"></i>News mood</h3>
+        <p class="muted small" id="newsMoodText">Run the AI over these headlines to see whether today's news sounds positive, neutral or negative.</p>
+      </div>
+      <div class="news-ai-actions">
+        <div class="mood-bar" aria-hidden="true"><span id="moodPos"></span><span id="moodNeu"></span><span id="moodNeg"></span></div>
+        <button id="newsAiBtn" type="button">Analyse with AI</button>
+      </div>
+    </section>
+
+    <p id="newsStatus" class="muted small" role="status"></p>
+    <div class="news-grid" id="newsGrid"></div>
+  </div>
+
   <!-- =================== START EARLY TAB =================== -->
-  <div id="tab-learn" class="container hidden">
+  <div id="tab-learn" class="tab-panel container hidden">
     <header class="learn-hero">
       <!-- Captain Coin flies across the hero (original character) -->
       <div class="flyer" aria-hidden="true">
@@ -362,6 +405,7 @@
   <script src="decor.js"></script>
   <script src="script.js"></script>
   <script src="learn.js"></script>
+  <script src="market-news.js"></script>
   <script type="module" src="ai.js"></script>
 </body>
 </html>

@@ -127,8 +127,9 @@ document.querySelectorAll("#themeSwitch button").forEach((b) => {
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t === tab));
-    $("tab-tracker").classList.toggle("hidden", tab.dataset.tab !== "tracker");
-    $("tab-learn").classList.toggle("hidden", tab.dataset.tab !== "learn");
+    document.querySelectorAll(".tab-panel").forEach((panel) => {
+      panel.classList.toggle("hidden", panel.id !== "tab-" + tab.dataset.tab);
+    });
     window.dispatchEvent(new CustomEvent("tabchange", { detail: tab.dataset.tab }));
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
