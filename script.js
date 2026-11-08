@@ -164,7 +164,19 @@ function saveRecent(symbol) {
 /* =========================================================
    4. FETCHING
    ========================================================= */
-async function avRequest(params) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Free keys also allow only ~1 request per second, so on a limit message
+// wait a moment and try once more before giving up.
+async function avRequest(params, retry = true) {
+  try { return await avRequestOnce(params); }
+  catch (err) {
+    if (err.kind === "limit" && retry) { await sleep(1500); return avRequest(params, false); }
+    throw err;
+  }
+}
+
+async function avRequestOnce(params) {
   const url = AV_BASE + "?" + new URLSearchParams({ ...params, apikey: getApiKey() });
   const res = await fetch(url);
   if (!res.ok) throw new Error("Network error (" + res.status + ")");
@@ -239,6 +251,7 @@ async function analyse(symbol) {
 
   // News is loaded separately so a news failure never hides the chart
   try {
+    await sleep(1200); // stay under the free plan's 1-request-per-second limit
     renderNews(await fetchNews(symbol), false);
   } catch (err) {
     console.error(err);
