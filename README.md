@@ -22,7 +22,7 @@ It was built for the **Call2Code Hackathon** and includes **text-to-speech** so 
 | ⚡ **Volatility score** | Standard deviation of daily returns, annualised (× √252). Labelled Low / Moderate / High |
 | 📰 **Latest news** | Recent headlines about the company from [Hacker News search](https://hn.algolia.com/api), with the [GDELT](https://www.gdeltproject.org/) news database as a backup. Neither needs a key |
 | 🎤 **Listen to news** | The Web Speech API reads each headline and summary aloud |
-| 🔁 **Recent & popular symbols** | One-click chips. Recent searches are saved in the browser |
+| 🔎 **Any stock, US or Indian** | Search any symbol. Indian stocks use `.BSE` (e.g. `RELIANCE.BSE`) and show prices in ₹. One-click chips for popular US and Indian stocks, plus recent searches |
 | 🌓 **Themes** | Dark, light, eye comfort, or **auto** (light during the day, dark at night, based on the device clock) |
 | 🌐 **Multilingual** | Google Translate widget |
 | 🧪 **Sample-data fallback** | If the free API limit is reached, the app shows clearly labelled sample data instead of breaking |

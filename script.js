@@ -12,6 +12,9 @@
 
 const AV_BASE = "https://www.alphavantage.co/query";
 const POPULAR = ["AAPL", "MSFT", "TSLA", "NVDA", "AMZN", "GOOGL"];
+// Indian stocks on Alpha Vantage use the Bombay Stock Exchange suffix ".BSE"
+const POPULAR_INDIA = ["RELIANCE.BSE", "TCS.BSE", "INFY.BSE", "HDFCBANK.BSE"];
+let currency = "USD"; // switches to INR for .BSE / .NSE symbols
 const MAX_RECENT = 5;
 
 let chart = null;
@@ -24,7 +27,7 @@ const state = { stats: null, articles: [], aiSentiment: null, isSample: false };
 
 /* Weather types — also used by learn.js on the Start Early tab */
 const WEATHER_TYPES = {
-  sunny:  { icon: "☀️", title: "Sunny",  meaning: "The price has been rising and the news mood is positive.",
+  sunny:  { icon: "☀️", title: "Sunny",  meaning: "The price has been rising and the news isn't negative.",
             lesson: "Good days are fun, but they don't last forever. A sunny week doesn't mean next week will be sunny too." },
   cloudy: { icon: "⛅", title: "Cloudy", meaning: "Mixed signals — the price is fairly flat or the news disagrees with the trend.",
             lesson: "Most days are cloudy. This is why investors look at years, not days." },
@@ -44,7 +47,8 @@ function storageGet(key, fallback) {
 function storageSet(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage blocked: ignore */ }
 }
-const fmtMoney = (n) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const currencySign = () => (currency === "INR" ? "₹" : "$");
+const fmtMoney = (n) => currencySign() + n.toLocaleString(currency === "INR" ? "en-IN" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
 const fmtVolume = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + "B" : n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : String(Math.round(n));
 
@@ -129,7 +133,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
 $("searchForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const symbol = $("tickerInput").value.trim().toUpperCase();
-  if (!/^[A-Z0-9.\-]{1,10}$/.test(symbol)) {
+  if (!/^[A-Z0-9.\-]{1,20}$/.test(symbol)) {
     showStatus("Please enter a valid stock symbol, e.g. AAPL or IBM.", "error");
     return;
   }
@@ -208,6 +212,8 @@ async function fetchPrices(symbol) {
 const COMPANY_NAMES = {
   AAPL: "Apple", MSFT: "Microsoft", TSLA: "Tesla", NVDA: "Nvidia", AMZN: "Amazon",
   GOOGL: "Google", GOOG: "Google", META: "Meta", NFLX: "Netflix", IBM: "IBM",
+  "RELIANCE.BSE": "Reliance Industries", "TCS.BSE": "Tata Consultancy", "INFY.BSE": "Infosys",
+  "HDFCBANK.BSE": "HDFC Bank", "TATASTEEL.BSE": "Tata Steel", "WIPRO.BSE": "Wipro", "ITC.BSE": "ITC",
   AMD: "AMD", INTC: "Intel", ORCL: "Oracle", DIS: "Disney", NKE: "Nike", KO: "Coca-Cola",
 };
 
@@ -247,7 +253,7 @@ async function newsFromGdelt(name) {
 }
 
 async function fetchNews(symbol) {
-  const name = COMPANY_NAMES[symbol] || symbol;
+  const name = COMPANY_NAMES[symbol] || symbol.replace(/\.(BSE|NSE)$/, "");
   const pattern = new RegExp("\\b(" + escapeRegex(name) + "|" + escapeRegex(symbol) + ")\\b", "i");
   const seen = new Set();
   const relevant = (list) => list.filter((a) => {
@@ -268,6 +274,7 @@ async function fetchNews(symbol) {
 async function analyse(symbol) {
   if (!getApiKey()) { pendingSymbol = symbol; openKeyDialog(); return; }
 
+  currency = /\.(BSE|NSE)$/.test(symbol) ? "INR" : "USD";
   saveRecent(symbol);
   state.articles = []; state.aiSentiment = null;
   setSentiment(null);
@@ -284,7 +291,7 @@ async function analyse(symbol) {
   } catch (err) {
     console.error(err);
     if (err.kind === "notfound") {
-      showStatus("Couldn't find \"" + symbol + "\". Check the symbol (US listings work best, e.g. AAPL).", "error");
+      showStatus("Couldn't find \"" + symbol + "\". US stocks use their ticker (e.g. AAPL). Indian stocks need .BSE at the end (e.g. TATASTEEL.BSE, RELIANCE.BSE).", "error");
       $("dashboard").classList.add("hidden");
       return;
     }
@@ -462,7 +469,7 @@ function renderChart() {
       },
       scales: {
         x: { ticks: { color: cssVar("--muted"), maxTicksLimit: 6 }, grid: { display: false } },
-        y: { ticks: { color: cssVar("--muted"), callback: (v) => "$" + v }, grid: { color: cssVar("--border") } },
+        y: { ticks: { color: cssVar("--muted"), callback: (v) => currencySign() + v.toLocaleString(currency === "INR" ? "en-IN" : "en-US") }, grid: { color: cssVar("--border") } },
       },
     },
   });
@@ -654,6 +661,7 @@ function sampleNews(symbol) {
   $("themeSelect").value = theme;
   applyTheme(theme);
   renderChips("popularList", POPULAR, "Popular:");
+  renderChips("indiaList", POPULAR_INDIA, "🇮🇳 India:");
   renderChips("recentList", storageGet("ft_recent", []), "Recent:");
   makeSnow();
 })();
