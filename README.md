@@ -7,12 +7,17 @@ It was built for the **Call2Code Hackathon** and includes **text-to-speech** so 
 
 ![FinTracker dashboard](screenshots/dashboard.png)
 
+![Start Early tab](screenshots/start-early.png)
+
 ---
 
 ## ✨ Features
 
 | Feature | How it works |
 |---|---|
+| 🌦️ **Market weather report** | Turns trend, volatility and news mood into ☀️ Sunny, ⛅ Cloudy, 🌧️ Rainy or ⛈️ Stormy, with a plain-English explanation and a learning tip |
+| 🤖 **AI headline reader** | A DistilRoBERTa transformer fine-tuned on financial news runs **in the browser** with Transformers.js (ONNX + WebAssembly). It labels each headline positive, neutral or negative and is compared with Alpha Vantage's score. No server, and no data leaves the device |
+| 🌱 **Start Early tab** | For kids and first-time learners: safety rules, a guide to the weather report, a ₹ savings jar calculator showing compounding, a 5-question quiz and a word bank |
 | 📊 **Price trend (7D / 30D / 90D)** | Daily prices from Alpha Vantage, drawn with Chart.js. Shows period high, low, return and average volume |
 | ⚡ **Volatility score** | Standard deviation of daily returns, annualised (× √252). Labelled Low / Moderate / High |
 | 🧠 **News sentiment** | Alpha Vantage *News & Sentiment* gives a score from −1 (bearish) to +1 (bullish) for each article. FinTracker averages them on a meter |
@@ -37,6 +42,7 @@ The first time someone searches, FinTracker asks:
 - HTML, CSS (theme variables), vanilla JavaScript
 - [Chart.js](https://www.chartjs.org/) for charts
 - [Alpha Vantage](https://www.alphavantage.co/) for daily prices and news sentiment
+- [Transformers.js](https://huggingface.co/docs/transformers.js) for in-browser AI (model: `mrm8488/distilroberta-finetuned-financial-news-sentiment-analysis`, ONNX version)
 - [Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API) for text-to-speech
 
 ## 📁 Project structure
@@ -45,7 +51,9 @@ The first time someone searches, FinTracker asks:
 index.html   page layout and API-key dialog
 style.css    themes and responsive layout
 config.js    default (demo) API key
-script.js    data fetching, calculations, chart, news, speech
+script.js    data fetching, calculations, weather report, chart, news, speech
+ai.js        in-browser AI sentiment model (Transformers.js)
+learn.js     Start Early tab: calculator, quiz, word bank
 screenshots/ README images
 ```
 

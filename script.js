@@ -19,6 +19,21 @@ let currentSeries = [];   // [{date, open, high, low, close, volume}] oldest -> 
 let currentRange = 30;
 let pendingSymbol = null; // symbol to load once a key is chosen
 
+// Latest results, used by the weather report and the AI panel
+const state = { stats: null, articles: [], avSentiment: null, aiSentiment: null, isSample: false };
+
+/* Weather types — also used by learn.js on the Start Early tab */
+const WEATHER_TYPES = {
+  sunny:  { icon: "☀️", title: "Sunny",  meaning: "The price has been rising and the news mood is positive.",
+            lesson: "Good days are fun, but they don't last forever. A sunny week doesn't mean next week will be sunny too." },
+  cloudy: { icon: "⛅", title: "Cloudy", meaning: "Mixed signals — the price is fairly flat or the news disagrees with the trend.",
+            lesson: "Most days are cloudy. This is why investors look at years, not days." },
+  rainy:  { icon: "🌧️", title: "Rainy",  meaning: "The price has been falling or the news mood is negative.",
+            lesson: "Prices fall sometimes, even for great companies. Rainy days are why you keep an emergency fund first." },
+  stormy: { icon: "⛈️", title: "Stormy", meaning: "The price is swinging a lot from day to day (high volatility).",
+            lesson: "Big swings make people panic. A calm plan — and not putting all your money in one place — beats panic." },
+};
+
 /* ---------- small helpers ---------- */
 const $ = (id) => document.getElementById(id);
 
@@ -95,6 +110,17 @@ function applyTheme(choice) {
 $("themeSelect").addEventListener("change", (e) => {
   storageSet("ft_theme", e.target.value);
   applyTheme(e.target.value);
+});
+
+/* ---------- tabs ---------- */
+document.querySelectorAll(".tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t === tab));
+    $("tab-tracker").classList.toggle("hidden", tab.dataset.tab !== "tracker");
+    $("tab-learn").classList.toggle("hidden", tab.dataset.tab !== "learn");
+    window.dispatchEvent(new CustomEvent("tabchange", { detail: tab.dataset.tab }));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
 });
 
 /* =========================================================
@@ -181,6 +207,9 @@ async function analyse(symbol) {
   if (!getApiKey()) { pendingSymbol = symbol; openKeyDialog(); return; }
 
   saveRecent(symbol);
+  state.articles = []; state.avSentiment = null; state.aiSentiment = null;
+  $("aiResult").textContent = "";
+  updateAiButton();
   showStatus("Loading " + symbol + "…", "info");
   $("dashboard").classList.remove("hidden");
   $("symbolTitle").textContent = symbol;
@@ -275,6 +304,8 @@ function sentimentLabel(score) {
 function renderAll(symbol, isSample) {
   const rows = currentSeries.slice(-currentRange);
   const s = computeStats(rows);
+  state.stats = s;
+  state.isSample = isSample;
 
   $("symbolTitle").textContent = symbol + (isSample ? " · sample data" : "");
   $("lastUpdated").textContent = "Last close: " + s.lastDate;
@@ -297,6 +328,37 @@ function renderAll(symbol, isSample) {
     "% over " + rows.length + " trading days (≈" + s.annualVol.toFixed(1) + "% a year).";
 
   renderChart();
+  renderWeather();
+}
+
+/* ---------- Market weather report ----------
+   Rules (checked in order):
+   1. annualised volatility >= 40%                      -> stormy
+   2. period return > +2% and news mood not negative    -> sunny
+   3. period return < -2% or news mood clearly negative -> rainy
+   4. anything else                                      -> cloudy
+   News mood = AI score if the AI has run, otherwise Alpha Vantage's score. */
+function computeWeather(stats, mood) {
+  const m = mood === null || mood === undefined ? 0 : mood;
+  if (stats.annualVol >= 40) return "stormy";
+  if (stats.periodReturn > 2 && m >= -0.05) return "sunny";
+  if (stats.periodReturn < -2 || m <= -0.15) return "rainy";
+  return "cloudy";
+}
+
+function renderWeather() {
+  if (!state.stats) return;
+  const usingAi = state.aiSentiment !== null;
+  const mood = usingAi ? state.aiSentiment : state.avSentiment;
+  const key = computeWeather(state.stats, mood);
+  const w = WEATHER_TYPES[key];
+  $("weatherCard").dataset.weather = key;
+  $("weatherIcon").textContent = w.icon;
+  $("weatherTitle").textContent = w.title + (state.isSample ? " (sample data)" : "");
+  $("weatherText").textContent = w.meaning + " 🌱 Learning tip: " + w.lesson;
+  const moodText = mood === null ? "not available yet" : mood.toFixed(2) + (usingAi ? " (AI model)" : " (Alpha Vantage)");
+  $("weatherBasis").textContent = "Based on: " + currentRange + "-day return " + fmtPct(state.stats.periodReturn) +
+    " · volatility ≈" + state.stats.annualVol.toFixed(0) + "%/yr · news mood " + moodText + ". A description of the past, not a forecast.";
 }
 
 function cssVar(name) {
@@ -357,6 +419,8 @@ $("rangeButtons").addEventListener("click", (e) => {
 });
 
 function setSentiment(avg, count) {
+  state.avSentiment = avg;
+  renderWeather();
   if (avg === null) {
     $("sentBadge").textContent = "—";
     $("sentBadge").className = "badge";
@@ -380,6 +444,8 @@ function formatAvTime(t) {
 function renderNews(articles, isSample) {
   const box = $("newsContainer");
   box.innerHTML = "";
+  state.articles = articles;
+  updateAiButton();
   if (!articles.length) {
     box.innerHTML = '<p class="muted">No recent news found for this symbol.</p>';
     setSentiment(null);
@@ -398,7 +464,10 @@ function renderNews(articles, isSample) {
     const meta = document.createElement("p");
     meta.className = "muted small";
     const s = sentimentLabel(n.score);
-    meta.textContent = [n.source, formatAvTime(n.time), s.text].filter(Boolean).join(" · ");
+    meta.textContent = [n.source, formatAvTime(n.time), "Alpha Vantage: " + s.text].filter(Boolean).join(" · ");
+    const aiTag = document.createElement("span");
+    aiTag.className = "ai-tag hidden";
+    meta.appendChild(aiTag);
     const p = document.createElement("p");
     p.textContent = n.summary || "No summary available.";
 
@@ -428,6 +497,62 @@ function speak(text) {
   window.speechSynthesis.speak(u);
 }
 $("stopSpeech").addEventListener("click", () => window.speechSynthesis && window.speechSynthesis.cancel());
+
+/* =========================================================
+   AI HEADLINE READER (model code lives in ai.js)
+   ========================================================= */
+function updateAiButton() {
+  const btn = $("aiBtn");
+  if (!window.FinAI) { btn.disabled = true; btn.textContent = "Loading AI engine…"; return; }
+  btn.disabled = !state.articles.length;
+  btn.textContent = state.articles.length ? "🤖 Read these headlines with AI" : "Search a stock first";
+}
+window.addEventListener("finai-ready", updateAiButton);
+// If the AI library can't load at all (offline / blocked), say so instead of waiting forever
+setTimeout(() => {
+  if (!window.FinAI) { $("aiBtn").textContent = "AI engine unavailable in this browser"; }
+}, 20000);
+
+$("aiBtn").addEventListener("click", async () => {
+  const btn = $("aiBtn");
+  const articles = state.articles;
+  if (!articles.length) return;
+  btn.disabled = true;
+  btn.textContent = "Downloading model…";
+  $("aiProgress").classList.remove("hidden");
+  try {
+    const model = await window.FinAI.load((pct) => { $("aiProgressFill").style.width = pct + "%"; });
+    $("aiProgress").classList.add("hidden");
+    btn.textContent = "Reading headlines…";
+
+    const results = await window.FinAI.classify(articles.map((a) => a.title));
+
+    // Show the AI label next to each article
+    document.querySelectorAll("#newsContainer .ai-tag").forEach((tag, i) => {
+      const r = results[i];
+      if (!r) return;
+      tag.textContent = " · 🤖 AI: " + r.label + " (" + Math.round(r.confidence * 100) + "% sure)";
+      tag.className = "ai-tag " + (r.score > 0.15 ? "up" : r.score < -0.15 ? "down" : "");
+    });
+
+    // Compare the AI's direction with Alpha Vantage's for each article
+    const dir = (x) => (x > 0.15 ? 1 : x < -0.15 ? -1 : 0);
+    const agree = results.filter((r, i) => dir(r.score) === dir(articles[i].score)).length;
+    const avg = results.reduce((a, r) => a + r.score, 0) / results.length;
+    state.aiSentiment = avg;
+    renderWeather();
+
+    $("aiResult").textContent = "Model: " + model + ". Average AI mood " + avg.toFixed(2) + " (" + sentimentLabel(avg).text +
+      "). The AI agreed with Alpha Vantage on " + agree + " of " + results.length + " headlines. The weather report now uses the AI's mood.";
+    btn.textContent = "✅ Done — run again";
+  } catch (err) {
+    console.error(err);
+    $("aiProgress").classList.add("hidden");
+    $("aiResult").textContent = "The AI model couldn't load (slow connection or blocked download). Everything else still works.";
+    btn.textContent = "Try again";
+  }
+  btn.disabled = false;
+});
 
 /* =========================================================
    7. SAMPLE DATA (clearly labelled) — used when the API fails
@@ -474,4 +599,21 @@ function sampleNews(symbol) {
   applyTheme(theme);
   renderChips("popularList", POPULAR, "Popular:");
   renderChips("recentList", storageGet("ft_recent", []), "Recent:");
+  makeSnow();
 })();
+
+/* Gentle snowfall around the footer translator (pure CSS animation) */
+function makeSnow() {
+  const box = $("snow");
+  if (!box) return;
+  for (let i = 0; i < 36; i++) {
+    const f = document.createElement("span");
+    f.className = "flake";
+    f.textContent = Math.random() < 0.3 ? "❅" : "•";
+    f.style.left = Math.random() * 100 + "%";
+    f.style.fontSize = 6 + Math.random() * 10 + "px";
+    f.style.animationDuration = 6 + Math.random() * 8 + "s";
+    f.style.animationDelay = -Math.random() * 12 + "s"; // start mid-fall so it's snowing immediately
+    box.appendChild(f);
+  }
+}
