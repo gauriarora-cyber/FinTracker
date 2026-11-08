@@ -20,7 +20,7 @@ let currentRange = 30;
 let pendingSymbol = null; // symbol to load once a key is chosen
 
 // Latest results, used by the weather report and the AI panel
-const state = { stats: null, articles: [], avSentiment: null, aiSentiment: null, isSample: false };
+const state = { stats: null, articles: [], aiSentiment: null, isSample: false };
 
 /* Weather types — also used by learn.js on the Start Early tab */
 const WEATHER_TYPES = {
@@ -200,26 +200,49 @@ async function fetchPrices(symbol) {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/* News comes from GDELT (free, no key, works from the browser).
+   Alpha Vantage's News & Sentiment feed is now a paid-only endpoint.
+   GDELT has no sentiment score, so the AI model measures the mood. */
+const COMPANY_NAMES = {
+  AAPL: "Apple", MSFT: "Microsoft", TSLA: "Tesla", NVDA: "Nvidia", AMZN: "Amazon",
+  GOOGL: "Alphabet", GOOG: "Alphabet", META: "Meta", NFLX: "Netflix", IBM: "IBM",
+  AMD: "AMD", INTC: "Intel", ORCL: "Oracle", DIS: "Disney", NKE: "Nike", KO: "Coca-Cola",
+};
+
+const cleanTitle = (t) => t.replace(/\s+([,.:;!?'%])/g, "$1").replace(/\s+-\s+/g, " - ").replace(/\s+/g, " ").trim();
+
 async function fetchNews(symbol) {
-  const data = await avRequest({ function: "NEWS_SENTIMENT", tickers: symbol, limit: "50", sort: "LATEST" });
-  return (data.feed || []).slice(0, 6).map((item) => {
-    const t = (item.ticker_sentiment || []).find((x) => x.ticker === symbol);
-    return {
-      title: item.title,
-      summary: item.summary,
-      url: item.url,
-      source: item.source,
-      time: item.time_published, // e.g. 20250705T120000
-      score: t ? +t.ticker_sentiment_score : +item.overall_sentiment_score,
-    };
+  const name = COMPANY_NAMES[symbol] || symbol;
+  const query = '"' + name + '" (stock OR shares OR investors OR earnings) sourcelang:english';
+  const url = "https://api.gdeltproject.org/api/v2/doc/doc?" + new URLSearchParams({
+    query, mode: "artlist", format: "json", sort: "datedesc", timespan: "14d", maxrecords: "75",
   });
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("News service error (" + res.status + ")");
+  const text = await res.text();
+  if (!text.trim().startsWith("{")) throw new Error(text.slice(0, 120)); // GDELT sends plain-text errors
+  const data = JSON.parse(text);
+
+  // Keep headlines that actually mention the company, and drop duplicates
+  const seen = new Set();
+  const needles = [name.toLowerCase(), symbol.toLowerCase()];
+  return (data.articles || [])
+    .map((a) => ({ title: cleanTitle(a.title || ""), url: a.url, source: a.domain, time: a.seendate }))
+    .filter((a) => {
+      const key = a.title.toLowerCase();
+      if (!a.title || seen.has(key)) return false;
+      seen.add(key);
+      return needles.some((n) => new RegExp("\\b" + n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b").test(key));
+    })
+    .slice(0, 6);
 }
 
 async function analyse(symbol) {
   if (!getApiKey()) { pendingSymbol = symbol; openKeyDialog(); return; }
 
   saveRecent(symbol);
-  state.articles = []; state.avSentiment = null; state.aiSentiment = null;
+  state.articles = []; state.aiSentiment = null;
+  setSentiment(null);
   $("aiResult").textContent = "";
   updateAiButton();
   showStatus("Loading " + symbol + "…", "info");
@@ -251,16 +274,13 @@ async function analyse(symbol) {
 
   // News is loaded separately so a news failure never hides the chart
   try {
-    await sleep(1200); // stay under the free plan's 1-request-per-second limit
     renderNews(await fetchNews(symbol), false);
   } catch (err) {
     console.error(err);
     $("newsContainer").innerHTML = "";
     const p = document.createElement("p");
     p.className = "muted";
-    p.textContent = err.kind === "limit"
-      ? "News limit reached for now — try again later or use your own key."
-      : "Couldn't load news right now.";
+    p.textContent = "Couldn't load news right now — try again in a few seconds.";
     $("newsContainer").appendChild(p);
     setSentiment(null);
   }
@@ -302,7 +322,7 @@ function volatilityLabel(annualVol) {
   return { text: "⚠️ High volatility", cls: "bad" };
 }
 
-// Alpha Vantage sentiment score ranges roughly from -1 (bearish) to +1 (bullish)
+// Sentiment score ranges from -1 (bearish) to +1 (bullish)
 function sentimentLabel(score) {
   if (score <= -0.35) return { text: "Bearish", cls: "bad" };
   if (score <= -0.15) return { text: "Somewhat bearish", cls: "bad" };
@@ -350,7 +370,7 @@ function renderAll(symbol, isSample) {
    2. period return > +2% and news mood not negative    -> sunny
    3. period return < -2% or news mood clearly negative -> rainy
    4. anything else                                      -> cloudy
-   News mood = AI score if the AI has run, otherwise Alpha Vantage's score. */
+   News mood comes from the AI headline reader (neutral until it has run). */
 function computeWeather(stats, mood) {
   const m = mood === null || mood === undefined ? 0 : mood;
   if (stats.annualVol >= 40) return "stormy";
@@ -361,15 +381,14 @@ function computeWeather(stats, mood) {
 
 function renderWeather() {
   if (!state.stats) return;
-  const usingAi = state.aiSentiment !== null;
-  const mood = usingAi ? state.aiSentiment : state.avSentiment;
+  const mood = state.aiSentiment;
   const key = computeWeather(state.stats, mood);
   const w = WEATHER_TYPES[key];
   $("weatherCard").dataset.weather = key;
   $("weatherIcon").textContent = w.icon;
   $("weatherTitle").textContent = w.title + (state.isSample ? " (sample data)" : "");
   $("weatherText").textContent = w.meaning + " 🌱 Learning tip: " + w.lesson;
-  const moodText = mood === null ? "not available yet" : mood.toFixed(2) + (usingAi ? " (AI model)" : " (Alpha Vantage)");
+  const moodText = mood === null ? "not measured yet — run the AI reader below" : mood.toFixed(2) + " (AI model)";
   $("weatherBasis").textContent = "Based on: " + currentRange + "-day return " + fmtPct(state.stats.periodReturn) +
     " · volatility ≈" + state.stats.annualVol.toFixed(0) + "%/yr · news mood " + moodText + ". A description of the past, not a forecast.";
 }
@@ -432,12 +451,10 @@ $("rangeButtons").addEventListener("click", (e) => {
 });
 
 function setSentiment(avg, count) {
-  state.avSentiment = avg;
-  renderWeather();
   if (avg === null) {
-    $("sentBadge").textContent = "—";
+    $("sentBadge").textContent = "Not measured yet";
     $("sentBadge").className = "badge";
-    $("sentText").textContent = "No sentiment data available.";
+    $("sentText").textContent = "Use the 🤖 AI headline reader below to measure the mood of the news.";
     $("sentMarker").style.left = "50%";
     return;
   }
@@ -445,7 +462,7 @@ function setSentiment(avg, count) {
   $("sentBadge").textContent = s.text;
   $("sentBadge").className = "badge " + s.cls;
   $("sentMarker").style.left = ((Math.max(-1, Math.min(1, avg)) + 1) / 2 * 100) + "%";
-  $("sentText").textContent = "Average score " + avg.toFixed(2) + " across " + count + " recent articles (−1 bearish … +1 bullish).";
+  $("sentText").textContent = "AI average " + avg.toFixed(2) + " across " + count + " recent headlines (−1 bearish … +1 bullish).";
 }
 
 function formatAvTime(t) {
@@ -461,11 +478,8 @@ function renderNews(articles, isSample) {
   updateAiButton();
   if (!articles.length) {
     box.innerHTML = '<p class="muted">No recent news found for this symbol.</p>';
-    setSentiment(null);
     return;
   }
-  const avg = articles.reduce((a, n) => a + n.score, 0) / articles.length;
-  setSentiment(avg, articles.length);
 
   // Build with textContent (not innerHTML) so news text can't inject HTML
   articles.forEach((n) => {
@@ -476,13 +490,13 @@ function renderNews(articles, isSample) {
     h.textContent = n.title;
     const meta = document.createElement("p");
     meta.className = "muted small";
-    const s = sentimentLabel(n.score);
-    meta.textContent = [n.source, formatAvTime(n.time), "Alpha Vantage: " + s.text].filter(Boolean).join(" · ");
+    meta.textContent = [n.source, formatAvTime(n.time)].filter(Boolean).join(" · ");
     const aiTag = document.createElement("span");
     aiTag.className = "ai-tag hidden";
     meta.appendChild(aiTag);
     const p = document.createElement("p");
-    p.textContent = n.summary || "No summary available.";
+    p.textContent = n.summary || "";
+    if (!n.summary) p.classList.add("hidden");
 
     const actions = document.createElement("div");
     actions.className = "news-actions";
@@ -548,15 +562,15 @@ $("aiBtn").addEventListener("click", async () => {
       tag.className = "ai-tag " + (r.score > 0.15 ? "up" : r.score < -0.15 ? "down" : "");
     });
 
-    // Compare the AI's direction with Alpha Vantage's for each article
-    const dir = (x) => (x > 0.15 ? 1 : x < -0.15 ? -1 : 0);
-    const agree = results.filter((r, i) => dir(r.score) === dir(articles[i].score)).length;
     const avg = results.reduce((a, r) => a + r.score, 0) / results.length;
+    const counts = { positive: 0, neutral: 0, negative: 0 };
+    results.forEach((r) => { counts[r.score > 0.15 ? "positive" : r.score < -0.15 ? "negative" : "neutral"]++; });
     state.aiSentiment = avg;
+    setSentiment(avg, results.length);
     renderWeather();
 
-    $("aiResult").textContent = "Model: " + model + ". Average AI mood " + avg.toFixed(2) + " (" + sentimentLabel(avg).text +
-      "). The AI agreed with Alpha Vantage on " + agree + " of " + results.length + " headlines. The weather report now uses the AI's mood.";
+    $("aiResult").textContent = "Model: " + model + ". " + counts.positive + " positive, " + counts.neutral + " neutral, " +
+      counts.negative + " negative → overall " + sentimentLabel(avg).text.toLowerCase() + " (" + avg.toFixed(2) + "). The weather report now includes this news mood.";
     btn.textContent = "✅ Done — run again";
   } catch (err) {
     console.error(err);
@@ -599,9 +613,9 @@ function sampleSeries(symbol) {
 
 function sampleNews(symbol) {
   return [
-    { title: symbol + " — sample headline: quarterly results ahead of expectations", summary: "This is sample text shown because live data is unavailable right now.", source: "Sample", time: "", score: 0.32 },
-    { title: symbol + " — sample headline: analysts mixed on outlook", summary: "Connect your own free Alpha Vantage key to see real news and sentiment.", source: "Sample", time: "", score: 0.02 },
-    { title: symbol + " — sample headline: sector faces regulatory questions", summary: "Sample article used to demonstrate the sentiment meter and text-to-speech.", source: "Sample", time: "", score: -0.21 },
+    { title: symbol + " shares climb after quarterly results beat expectations", summary: "Sample headline — live data is unavailable right now.", source: "Sample", time: "" },
+    { title: "Analysts split on " + symbol + " outlook as costs rise", summary: "Sample headline — connect your own free key for live prices.", source: "Sample", time: "" },
+    { title: symbol + " faces regulatory investigation, stock slips", summary: "Sample headline used to demonstrate the AI reader and text-to-speech.", source: "Sample", time: "" },
   ];
 }
 
