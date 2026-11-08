@@ -1,0 +1,477 @@
+/* =========================================================
+   FinTracker — main script
+   Sections:
+   1. API key handling (visitor key first, demo key second)
+   2. Theme (auto by local time / manual)
+   3. Search, recent & popular symbols
+   4. Fetching data from Alpha Vantage
+   5. Calculations (stats, volatility, sentiment)
+   6. Rendering (chart, cards, news, text-to-speech)
+   7. Sample data fallback (when the API limit is reached)
+   ========================================================= */
+
+const AV_BASE = "https://www.alphavantage.co/query";
+const POPULAR = ["AAPL", "MSFT", "TSLA", "NVDA", "AMZN", "GOOGL"];
+const MAX_RECENT = 5;
+
+let chart = null;
+let currentSeries = [];   // [{date, open, high, low, close, volume}] oldest -> newest
+let currentRange = 30;
+let pendingSymbol = null; // symbol to load once a key is chosen
+
+/* ---------- small helpers ---------- */
+const $ = (id) => document.getElementById(id);
+
+function storageGet(key, fallback) {
+  try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); }
+  catch { return fallback; }
+}
+function storageSet(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage blocked: ignore */ }
+}
+const fmtMoney = (n) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPct = (n) => (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
+const fmtVolume = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + "B" : n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : String(Math.round(n));
+
+function showStatus(message, type = "info", action = null) {
+  const bar = $("statusBar");
+  bar.className = "status " + type;
+  bar.textContent = message;
+  if (action) {
+    const btn = document.createElement("button");
+    btn.textContent = action.label;
+    btn.className = "small-btn";
+    btn.addEventListener("click", action.onClick);
+    bar.appendChild(btn);
+  }
+}
+const hideStatus = () => $("statusBar").classList.add("hidden");
+
+/* =========================================================
+   1. API KEY — ask the visitor first, fall back to demo key
+   ========================================================= */
+function getApiKey() {
+  const choice = storageGet("ft_key_choice", null); // {type: "own"|"demo", key}
+  if (!choice) return null;
+  return choice.type === "own" ? choice.key : FINTRACKER_CONFIG.DEFAULT_ALPHA_VANTAGE_KEY;
+}
+
+function openKeyDialog() {
+  const choice = storageGet("ft_key_choice", null);
+  $("userKeyInput").value = choice && choice.type === "own" ? choice.key : "";
+  $("keyDialog").showModal();
+}
+
+$("useOwnKey").addEventListener("click", () => {
+  const key = $("userKeyInput").value.trim();
+  if (!key) { $("userKeyInput").focus(); return; }
+  storageSet("ft_key_choice", { type: "own", key });
+  $("keyDialog").close();
+  resumePending();
+});
+$("useDemoKey").addEventListener("click", () => {
+  storageSet("ft_key_choice", { type: "demo" });
+  $("keyDialog").close();
+  resumePending();
+});
+$("keyBtn").addEventListener("click", openKeyDialog);
+
+function resumePending() {
+  if (pendingSymbol) { const s = pendingSymbol; pendingSymbol = null; analyse(s); }
+}
+
+/* =========================================================
+   2. THEME — "auto" picks light by day, dark by night
+   ========================================================= */
+function applyTheme(choice) {
+  let theme = choice;
+  if (choice === "auto") {
+    const hour = new Date().getHours();
+    theme = hour >= 7 && hour < 19 ? "light" : "dark";
+  }
+  document.documentElement.setAttribute("data-theme", theme);
+  if (chart) renderChart(); // redraw chart with theme colours
+}
+$("themeSelect").addEventListener("change", (e) => {
+  storageSet("ft_theme", e.target.value);
+  applyTheme(e.target.value);
+});
+
+/* =========================================================
+   3. SEARCH, RECENT & POPULAR
+   ========================================================= */
+$("searchForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const symbol = $("tickerInput").value.trim().toUpperCase();
+  if (!/^[A-Z0-9.\-]{1,10}$/.test(symbol)) {
+    showStatus("Please enter a valid stock symbol, e.g. AAPL or IBM.", "error");
+    return;
+  }
+  analyse(symbol);
+});
+
+function renderChips(containerId, symbols, prefix) {
+  const box = $(containerId);
+  box.innerHTML = "";
+  if (!symbols.length) return;
+  const label = document.createElement("span");
+  label.className = "chip-label";
+  label.textContent = prefix;
+  box.appendChild(label);
+  symbols.forEach((s) => {
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.type = "button";
+    b.textContent = s;
+    b.addEventListener("click", () => { $("tickerInput").value = s; analyse(s); });
+    box.appendChild(b);
+  });
+}
+
+function saveRecent(symbol) {
+  const recent = storageGet("ft_recent", []).filter((s) => s !== symbol);
+  recent.unshift(symbol);
+  storageSet("ft_recent", recent.slice(0, MAX_RECENT));
+  renderChips("recentList", storageGet("ft_recent", []), "Recent:");
+}
+
+/* =========================================================
+   4. FETCHING
+   ========================================================= */
+async function avRequest(params) {
+  const url = AV_BASE + "?" + new URLSearchParams({ ...params, apikey: getApiKey() });
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Network error (" + res.status + ")");
+  const data = await res.json();
+  // Alpha Vantage signals problems inside a 200 response
+  if (data["Error Message"]) { const e = new Error("Symbol not found."); e.kind = "notfound"; throw e; }
+  if (data["Note"] || data["Information"]) { const e = new Error(data["Note"] || data["Information"]); e.kind = "limit"; throw e; }
+  return data;
+}
+
+async function fetchPrices(symbol) {
+  const data = await avRequest({ function: "TIME_SERIES_DAILY", symbol, outputsize: "compact" });
+  const series = data["Time Series (Daily)"];
+  if (!series) throw new Error("No price data returned.");
+  return Object.entries(series)
+    .map(([date, v]) => ({
+      date,
+      open: +v["1. open"], high: +v["2. high"], low: +v["3. low"],
+      close: +v["4. close"], volume: +v["5. volume"],
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+async function fetchNews(symbol) {
+  const data = await avRequest({ function: "NEWS_SENTIMENT", tickers: symbol, limit: "50", sort: "LATEST" });
+  return (data.feed || []).slice(0, 6).map((item) => {
+    const t = (item.ticker_sentiment || []).find((x) => x.ticker === symbol);
+    return {
+      title: item.title,
+      summary: item.summary,
+      url: item.url,
+      source: item.source,
+      time: item.time_published, // e.g. 20250705T120000
+      score: t ? +t.ticker_sentiment_score : +item.overall_sentiment_score,
+    };
+  });
+}
+
+async function analyse(symbol) {
+  if (!getApiKey()) { pendingSymbol = symbol; openKeyDialog(); return; }
+
+  saveRecent(symbol);
+  showStatus("Loading " + symbol + "…", "info");
+  $("dashboard").classList.remove("hidden");
+  $("symbolTitle").textContent = symbol;
+
+  try {
+    currentSeries = await fetchPrices(symbol);
+    renderAll(symbol, false);
+    hideStatus();
+  } catch (err) {
+    console.error(err);
+    if (err.kind === "notfound") {
+      showStatus("Couldn't find \"" + symbol + "\". Check the symbol (US listings work best, e.g. AAPL).", "error");
+      $("dashboard").classList.add("hidden");
+      return;
+    }
+    const why = err.kind === "limit"
+      ? "The free API limit has been reached for now."
+      : "Couldn't reach the market data service.";
+    showStatus(why + " Showing sample data so you can explore the features.", "warn", {
+      label: "Use my own key", onClick: openKeyDialog,
+    });
+    currentSeries = sampleSeries(symbol);
+    renderAll(symbol, true);
+    renderNews(sampleNews(symbol), true);
+    return;
+  }
+
+  // News is loaded separately so a news failure never hides the chart
+  try {
+    renderNews(await fetchNews(symbol), false);
+  } catch (err) {
+    console.error(err);
+    $("newsContainer").innerHTML = "";
+    const p = document.createElement("p");
+    p.className = "muted";
+    p.textContent = err.kind === "limit"
+      ? "News limit reached for now — try again later or use your own key."
+      : "Couldn't load news right now.";
+    $("newsContainer").appendChild(p);
+    setSentiment(null);
+  }
+}
+
+/* =========================================================
+   5. CALCULATIONS
+   ========================================================= */
+function computeStats(rows) {
+  const closes = rows.map((r) => r.close);
+  const first = rows[0], last = rows[rows.length - 1];
+  const prev = rows[rows.length - 2] || first;
+
+  // daily % returns -> standard deviation -> annualised volatility
+  const returns = [];
+  for (let i = 1; i < closes.length; i++) returns.push(closes[i] / closes[i - 1] - 1);
+  const mean = returns.reduce((a, b) => a + b, 0) / (returns.length || 1);
+  const variance = returns.reduce((a, r) => a + (r - mean) ** 2, 0) / Math.max(returns.length - 1, 1);
+  const dailyVol = Math.sqrt(variance);
+  const annualVol = dailyVol * Math.sqrt(252) * 100; // 252 trading days in a year
+
+  return {
+    last: last.close,
+    dayChangePct: (last.close / prev.close - 1) * 100,
+    dayChangeAbs: last.close - prev.close,
+    high: Math.max(...rows.map((r) => r.high)),
+    low: Math.min(...rows.map((r) => r.low)),
+    periodReturn: (last.close / first.close - 1) * 100,
+    avgVolume: rows.reduce((a, r) => a + r.volume, 0) / rows.length,
+    dailyVolPct: dailyVol * 100,
+    annualVol,
+    lastDate: last.date,
+  };
+}
+
+function volatilityLabel(annualVol) {
+  if (annualVol < 20) return { text: "✔️ Low volatility", cls: "good" };
+  if (annualVol < 40) return { text: "↔️ Moderate volatility", cls: "mid" };
+  return { text: "⚠️ High volatility", cls: "bad" };
+}
+
+// Alpha Vantage sentiment score ranges roughly from -1 (bearish) to +1 (bullish)
+function sentimentLabel(score) {
+  if (score <= -0.35) return { text: "Bearish", cls: "bad" };
+  if (score <= -0.15) return { text: "Somewhat bearish", cls: "bad" };
+  if (score < 0.15) return { text: "Neutral", cls: "mid" };
+  if (score < 0.35) return { text: "Somewhat bullish", cls: "good" };
+  return { text: "Bullish", cls: "good" };
+}
+
+/* =========================================================
+   6. RENDERING
+   ========================================================= */
+function renderAll(symbol, isSample) {
+  const rows = currentSeries.slice(-currentRange);
+  const s = computeStats(rows);
+
+  $("symbolTitle").textContent = symbol + (isSample ? " · sample data" : "");
+  $("lastUpdated").textContent = "Last close: " + s.lastDate;
+  $("lastPrice").textContent = fmtMoney(s.last);
+  const ch = $("dayChange");
+  ch.textContent = (s.dayChangeAbs >= 0 ? "▲ " : "▼ ") + fmtMoney(Math.abs(s.dayChangeAbs)).slice(1) + " (" + fmtPct(s.dayChangePct) + ")";
+  ch.className = "change " + (s.dayChangePct >= 0 ? "up" : "down");
+
+  $("statHigh").textContent = fmtMoney(s.high);
+  $("statLow").textContent = fmtMoney(s.low);
+  $("statReturn").textContent = fmtPct(s.periodReturn);
+  $("statReturn").className = s.periodReturn >= 0 ? "up" : "down";
+  $("statVolume").textContent = fmtVolume(s.avgVolume);
+
+  const v = volatilityLabel(s.annualVol);
+  $("volBadge").textContent = v.text;
+  $("volBadge").className = "badge " + v.cls;
+  $("volFill").style.width = Math.min(s.annualVol / 60 * 100, 100) + "%";
+  $("volText").textContent = "Average daily move ±" + s.dailyVolPct.toFixed(2) +
+    "% over " + rows.length + " trading days (≈" + s.annualVol.toFixed(1) + "% a year).";
+
+  renderChart();
+}
+
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function renderChart() {
+  const rows = currentSeries.slice(-currentRange);
+  if (!rows.length || typeof Chart === "undefined") return; // chart library failed to load
+  const up = rows[rows.length - 1].close >= rows[0].close;
+  const color = up ? cssVar("--up") : cssVar("--down");
+  const ctx = $("stockChart").getContext("2d");
+  const grad = ctx.createLinearGradient(0, 0, 0, 300);
+  grad.addColorStop(0, color + "55");
+  grad.addColorStop(1, color + "00");
+
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: rows.map((r) => r.date),
+      datasets: [{
+        label: "Close",
+        data: rows.map((r) => r.close),
+        borderColor: color,
+        backgroundColor: grad,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c) => " " + fmtMoney(c.parsed.y) } },
+      },
+      scales: {
+        x: { ticks: { color: cssVar("--muted"), maxTicksLimit: 6 }, grid: { display: false } },
+        y: { ticks: { color: cssVar("--muted"), callback: (v) => "$" + v }, grid: { color: cssVar("--border") } },
+      },
+    },
+  });
+}
+
+$("rangeButtons").addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  if (!btn || !currentSeries.length) return;
+  document.querySelectorAll("#rangeButtons button").forEach((b) => b.classList.remove("active"));
+  btn.classList.add("active");
+  currentRange = +btn.dataset.days;
+  const isSample = $("symbolTitle").textContent.includes("sample");
+  renderAll($("symbolTitle").textContent.split(" ")[0], isSample);
+});
+
+function setSentiment(avg, count) {
+  if (avg === null) {
+    $("sentBadge").textContent = "—";
+    $("sentBadge").className = "badge";
+    $("sentText").textContent = "No sentiment data available.";
+    $("sentMarker").style.left = "50%";
+    return;
+  }
+  const s = sentimentLabel(avg);
+  $("sentBadge").textContent = s.text;
+  $("sentBadge").className = "badge " + s.cls;
+  $("sentMarker").style.left = ((Math.max(-1, Math.min(1, avg)) + 1) / 2 * 100) + "%";
+  $("sentText").textContent = "Average score " + avg.toFixed(2) + " across " + count + " recent articles (−1 bearish … +1 bullish).";
+}
+
+function formatAvTime(t) {
+  if (!t || t.length < 8) return "";
+  const d = new Date(t.slice(0, 4) + "-" + t.slice(4, 6) + "-" + t.slice(6, 8) + "T" + (t.slice(9, 11) || "00") + ":" + (t.slice(11, 13) || "00") + ":00Z");
+  return isNaN(d) ? "" : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+function renderNews(articles, isSample) {
+  const box = $("newsContainer");
+  box.innerHTML = "";
+  if (!articles.length) {
+    box.innerHTML = '<p class="muted">No recent news found for this symbol.</p>';
+    setSentiment(null);
+    return;
+  }
+  const avg = articles.reduce((a, n) => a + n.score, 0) / articles.length;
+  setSentiment(avg, articles.length);
+
+  // Build with textContent (not innerHTML) so news text can't inject HTML
+  articles.forEach((n) => {
+    const item = document.createElement("article");
+    item.className = "news-item";
+
+    const h = document.createElement("h4");
+    h.textContent = n.title;
+    const meta = document.createElement("p");
+    meta.className = "muted small";
+    const s = sentimentLabel(n.score);
+    meta.textContent = [n.source, formatAvTime(n.time), s.text].filter(Boolean).join(" · ");
+    const p = document.createElement("p");
+    p.textContent = n.summary || "No summary available.";
+
+    const actions = document.createElement("div");
+    actions.className = "news-actions";
+    const listen = document.createElement("button");
+    listen.className = "ghost small-btn";
+    listen.textContent = "🔊 Listen";
+    listen.addEventListener("click", () => speak(n.title + ". " + (n.summary || "")));
+    actions.appendChild(listen);
+    if (n.url && !isSample) {
+      const a = document.createElement("a");
+      a.href = n.url; a.target = "_blank"; a.rel = "noopener";
+      a.textContent = "Read more →";
+      actions.appendChild(a);
+    }
+    item.append(h, meta, p, actions);
+    box.appendChild(item);
+  });
+}
+
+function speak(text) {
+  if (!("speechSynthesis" in window)) { showStatus("Text-to-speech isn't supported in this browser.", "error"); return; }
+  window.speechSynthesis.cancel(); // stop anything already playing
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "en-US";
+  window.speechSynthesis.speak(u);
+}
+$("stopSpeech").addEventListener("click", () => window.speechSynthesis && window.speechSynthesis.cancel());
+
+/* =========================================================
+   7. SAMPLE DATA (clearly labelled) — used when the API fails
+   ========================================================= */
+function seededRandom(seed) {
+  let x = 0;
+  for (const c of seed) x = (x * 31 + c.charCodeAt(0)) >>> 0;
+  return () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; };
+}
+
+function sampleSeries(symbol) {
+  const rand = seededRandom(symbol);
+  let price = 50 + rand() * 250;
+  const rows = [];
+  const d = new Date();
+  for (let i = 0; rows.length < 100; i++) {
+    const day = new Date(d); day.setDate(d.getDate() - (140 - i));
+    if (day.getDay() === 0 || day.getDay() === 6) continue; // skip weekends
+    const open = price;
+    price = Math.max(5, price * (1 + (rand() - 0.48) * 0.04));
+    rows.push({
+      date: day.toISOString().slice(0, 10),
+      open, close: price,
+      high: Math.max(open, price) * (1 + rand() * 0.01),
+      low: Math.min(open, price) * (1 - rand() * 0.01),
+      volume: 2e6 + rand() * 4e7,
+    });
+  }
+  return rows;
+}
+
+function sampleNews(symbol) {
+  return [
+    { title: symbol + " — sample headline: quarterly results ahead of expectations", summary: "This is sample text shown because live data is unavailable right now.", source: "Sample", time: "", score: 0.32 },
+    { title: symbol + " — sample headline: analysts mixed on outlook", summary: "Connect your own free Alpha Vantage key to see real news and sentiment.", source: "Sample", time: "", score: 0.02 },
+    { title: symbol + " — sample headline: sector faces regulatory questions", summary: "Sample article used to demonstrate the sentiment meter and text-to-speech.", source: "Sample", time: "", score: -0.21 },
+  ];
+}
+
+/* ---------- start-up ---------- */
+(function init() {
+  const theme = storageGet("ft_theme", "auto");
+  $("themeSelect").value = theme;
+  applyTheme(theme);
+  renderChips("popularList", POPULAR, "Popular:");
+  renderChips("recentList", storageGet("ft_recent", []), "Recent:");
+})();

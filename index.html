@@ -1,94 +1,141 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>FinTracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinTracker — Stock insights, volatility & news sentiment</title>
+  <meta name="description" content="FinTracker: stock price charts, volatility score and news sentiment in one place." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M3 17l6-6 4 4 8-8' fill='none' stroke='%231f8ef1' stroke-width='3' stroke-linecap='round'/></svg>" />
   <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
-
 <body>
-  <!-- Hero / Landing Section -->
-  <header class="hero">
-    <img src="logo.png" alt="FinTracker Logo" style="width: 60px;" />
-    <h1 style="color: #1f8ef1;">FinTracker</h1>
-    <p>Your gateway to smarter stock decisions</p>
-    <div>
-      <input type="text" id="tickerInput" placeholder="Enter stock symbol (e.g. TSLA)" />
-      <button onclick="scrollAndSearch()">Search</button>
+  <!-- Top bar -->
+  <nav class="topbar">
+    <a class="brand" href="#">
+      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      FinTracker
+    </a>
+    <div class="topbar-actions">
+      <select id="themeSelect" aria-label="Theme">
+        <option value="auto">🕐 Auto (by time)</option>
+        <option value="dark">🌚 Dark</option>
+        <option value="light">🌞 Light</option>
+        <option value="warm">🌅 Eye comfort</option>
+      </select>
+      <button class="ghost" id="keyBtn" title="Change API key">🔑 API key</button>
     </div>
-    <div class="scroll-down">↓</div>
+  </nav>
+
+  <!-- Hero + search -->
+  <header class="hero">
+    <h1>Smarter stock decisions,<br /><span class="accent">in one glance.</span></h1>
+    <p class="sub">Price trend, volatility score and news sentiment for any stock symbol.</p>
+    <form id="searchForm" class="search" autocomplete="off">
+      <input type="text" id="tickerInput" placeholder="Enter stock symbol (e.g. AAPL, TSLA, IBM)" aria-label="Stock symbol" />
+      <button type="submit">Analyse</button>
+    </form>
+    <div class="chips" id="popularList" aria-label="Popular symbols"></div>
+    <div class="chips recent" id="recentList" aria-label="Recent searches"></div>
   </header>
 
-  <!-- Main App Section -->
-  <section id="mainApp" style="display: none;">
-    <div class="container">
-      <header>
-        <img src="https://img.icons8.com/ios-filled/50/FFFFFF/combo-chart.png" alt="logo" />
-        <h1>FinTracker</h1>
-        <p class="tagline">Live market insights at your fingertips</p>
-        <select id="themeSelect" onchange="changeTheme()">
-          <option value="default">🌚 Dark Mode</option>
-          <option value="light">🌞 Light Mode</option>
-          <option value="warm">🌅 Eye Comfort</option>
-        </select>
-      </header>
+  <!-- Status / error banner -->
+  <div id="statusBar" class="status hidden" role="status"></div>
 
-      <div class="card" id="chart-section">
-        <canvas id="stockChart" width="600" height="300"></canvas>
-        <div id="volatilityTag"></div>
+  <!-- Dashboard -->
+  <main id="dashboard" class="container hidden">
+    <section class="card summary">
+      <div>
+        <h2 id="symbolTitle">—</h2>
+        <p class="muted" id="lastUpdated"></p>
       </div>
+      <div class="price-block">
+        <div id="lastPrice" class="price">—</div>
+        <div id="dayChange" class="change">—</div>
+      </div>
+    </section>
 
-      <div class="card" id="recent-section">
-        <h3>🔁 Recently Searched</h3>
-        <ul id="recentList"></ul>
-      </div>
+    <section class="stats" id="statsGrid">
+      <div class="stat"><span class="label">Period high</span><span id="statHigh">—</span></div>
+      <div class="stat"><span class="label">Period low</span><span id="statLow">—</span></div>
+      <div class="stat"><span class="label">Period return</span><span id="statReturn">—</span></div>
+      <div class="stat"><span class="label">Avg. volume</span><span id="statVolume">—</span></div>
+    </section>
 
-      <div class="card" id="trending-section">
-        <h3>🔥 Trending Stocks</h3>
-        <ul id="trendingList"></ul>
+    <section class="card">
+      <div class="card-head">
+        <h3>Price trend</h3>
+        <div class="range" id="rangeButtons">
+          <button data-days="7">7D</button>
+          <button data-days="30" class="active">30D</button>
+          <button data-days="90">90D</button>
+        </div>
       </div>
+      <div class="chart-wrap"><canvas id="stockChart"></canvas></div>
+    </section>
 
-      <div class="card" id="news-section">
-        <h3>📰 Related News</h3>
-        <div id="newsContainer"></div>
-      </div>
+    <div class="grid-2">
+      <section class="card">
+        <h3>Volatility</h3>
+        <div id="volBadge" class="badge">—</div>
+        <div class="meter"><div id="volFill" class="meter-fill"></div></div>
+        <p class="muted small" id="volText"></p>
+      </section>
+      <section class="card">
+        <h3>News sentiment</h3>
+        <div id="sentBadge" class="badge">—</div>
+        <div class="meter sentiment"><div id="sentMarker" class="meter-marker"></div></div>
+        <p class="muted small" id="sentText"></p>
+      </section>
     </div>
+
+    <section class="card">
+      <div class="card-head">
+        <h3>📰 Latest news</h3>
+        <button class="ghost small-btn" id="stopSpeech">⏹ Stop reading</button>
+      </div>
+      <div id="newsContainer"></div>
+    </section>
+  </main>
+
+  <!-- Features -->
+  <section class="features container">
+    <div class="feature"><span>📊</span><h4>Price trend</h4><p>7, 30 or 90 day charts with high, low and return.</p></div>
+    <div class="feature"><span>⚡</span><h4>Volatility score</h4><p>Based on how much the price swings day to day.</p></div>
+    <div class="feature"><span>🧠</span><h4>News sentiment</h4><p>Bullish or bearish tone of recent news for that stock.</p></div>
+    <div class="feature"><span>🎤</span><h4>Listen to news</h4><p>Text-to-speech reads headlines aloud for accessibility.</p></div>
   </section>
 
-  <!-- Features Section -->
-  <section class="features">
-    <h2>Why FinTracker?</h2>
-    <div class="feature-grid">
-      <div class="feature">📊 Real-time Stock Charts</div>
-      <div class="feature">📰 Latest News & Sentiment</div>
-      <div class="feature">🎤 Text-to-Speech Accessibility</div>
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer style="text-align:center; padding:1rem; background:#111; color:gray;">
-    <p>Built by Team Coder | 
-      <a href="https://github.com/gauriarora-cyber/FinTracker" target="_blank">GitHub</a> | 
-      <a href="https://fintracker-demo.netlify.app/" target="_blank">Live Demo</a>
-    </p>
+  <footer class="footer">
+    <p>FinTracker · built for the Call2Code Hackathon ·
+      <a href="https://github.com/gauriarora-cyber/FinTracker" target="_blank" rel="noopener">GitHub</a></p>
+    <p class="muted small">Data: Alpha Vantage. For learning only — not financial advice.</p>
+    <div id="google_translate_element"></div>
   </footer>
 
-  <!-- Google Translate Widget -->
-  <div id="google_translate_element" style="margin-top: 20px; text-align: center;"></div>
+  <!-- API key dialog -->
+  <dialog id="keyDialog">
+    <form method="dialog" id="keyForm">
+      <h3>Connect market data</h3>
+      <p class="muted">FinTracker uses <a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener">Alpha Vantage</a>. Do you have your own free API key?</p>
+      <label for="userKeyInput">Your API key</label>
+      <input type="text" id="userKeyInput" placeholder="Paste your Alpha Vantage key" />
+      <div class="dialog-actions">
+        <button type="button" id="useOwnKey">Use my key</button>
+        <button type="button" class="ghost" id="useDemoKey">I don't have one — use demo key</button>
+      </div>
+      <p class="muted small">Your key is saved only in this browser.</p>
+    </form>
+  </dialog>
 
-  <script type="text/javascript">
+  <script>
     function googleTranslateElementInit() {
-      new google.translate.TranslateElement(
-        { pageLanguage: 'en' },
-        'google_translate_element'
-      );
+      new google.translate.TranslateElement({ pageLanguage: "en" }, "google_translate_element");
     }
   </script>
-  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" defer></script>
 
-  <!-- Main JS -->
+  <script src="config.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
