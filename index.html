@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FinTracker — Stock insights, volatility & news sentiment</title>
   <meta name="description" content="FinTracker: stock charts, a market weather report, AI news sentiment and a Start Early corner for young learners." />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M3 17l6-6 4 4 8-8' fill='none' stroke='%231f8ef1' stroke-width='3' stroke-linecap='round'/></svg>" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Caveat:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -13,30 +16,30 @@
   <!-- Top bar -->
   <nav class="topbar">
     <a class="brand" href="#">
-      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      FinTracker
+      <img src="icon.svg" alt="" width="30" height="30" />
+      <span>Fin<b>Tracker</b></span>
     </a>
     <div class="tabs" role="tablist">
-      <button class="tab active" data-tab="tracker" role="tab">📊 Tracker</button>
-      <button class="tab" data-tab="learn" role="tab">🌱 Start Early</button>
+      <button class="tab active" data-tab="tracker" role="tab"><i data-icon="chart"></i>Tracker</button>
+      <button class="tab" data-tab="learn" role="tab"><i data-icon="sprout"></i>Start Early</button>
     </div>
     <div class="topbar-actions">
-      <select id="themeSelect" aria-label="Theme">
-        <option value="auto">🕐 Auto</option>
-        <option value="dark">🌚 Dark</option>
-        <option value="light">🌞 Light</option>
-        <option value="warm">🌅 Eye comfort</option>
-      </select>
-      <button class="ghost" id="keyBtn" title="Change API key">🔑 Key</button>
+      <div class="mode-switch" id="themeSwitch" role="group" aria-label="Colour mode">
+        <button type="button" data-mode="auto" title="Auto — light by day, dark by night" aria-label="Auto mode"><i data-icon="auto"></i></button>
+        <button type="button" data-mode="light" title="Light" aria-label="Light mode"><i data-icon="sun"></i></button>
+        <button type="button" data-mode="dark" title="Dark" aria-label="Dark mode"><i data-icon="moon"></i></button>
+        <button type="button" data-mode="warm" title="Eye comfort" aria-label="Eye comfort mode"><i data-icon="eye"></i></button>
+      </div>
+      <button class="ghost icon-btn" id="keyBtn" title="Change API key" aria-label="Change API key"><i data-icon="key"></i></button>
     </div>
   </nav>
 
   <!-- =================== TRACKER TAB =================== -->
   <div id="tab-tracker">
     <header class="hero">
-      <span class="hero-pill">✦ <b>New</b> AI headline reader runs right in your browser</span>
-      <h1>Smarter stock decisions,<br /><span class="accent">in one glance.</span></h1>
-      <p class="sub">Price trend, a market weather report and AI-read news sentiment for any stock symbol.</p>
+      <span class="hero-pill"><b>New</b> On-device AI reads market headlines</span>
+      <h1>Market insight,<br /><span class="accent">without the noise.</span></h1>
+      <p class="sub">Price trends, volatility, a plain-English market weather report and AI news sentiment — for US and Indian stocks.</p>
       <form id="searchForm" class="search" autocomplete="off">
         <input type="text" id="tickerInput" placeholder="Any symbol, e.g. AAPL or RELIANCE.BSE" aria-label="Stock symbol" />
         <button type="submit">Analyse</button>
@@ -80,7 +83,7 @@
 
       <section class="card">
         <div class="card-head">
-          <h3>Price trend</h3>
+          <h3><i data-icon="chart"></i>Price trend</h3>
           <div class="range" id="rangeButtons">
             <button data-days="7">7D</button>
             <button data-days="30" class="active">30D</button>
@@ -92,13 +95,13 @@
 
       <div class="grid-2">
         <section class="card">
-          <h3>Volatility</h3>
+          <h3><i data-icon="bolt"></i>Volatility</h3>
           <div id="volBadge" class="badge">—</div>
           <div class="meter"><div id="volFill" class="meter-fill"></div></div>
           <p class="muted small" id="volText"></p>
         </section>
         <section class="card">
-          <h3>News sentiment</h3>
+          <h3><i data-icon="news"></i>News sentiment</h3>
           <div id="sentBadge" class="badge">—</div>
           <div class="meter sentiment"><div id="sentMarker" class="meter-marker"></div></div>
           <p class="muted small" id="sentText"></p>
@@ -108,7 +111,7 @@
       <!-- AI panel -->
       <section class="card ai-card">
         <div class="card-head">
-          <h3>🤖 AI headline reader</h3>
+          <h3><i data-icon="ai"></i>AI headline reader</h3>
           <span class="pill">runs in your browser</span>
         </div>
         <p class="muted small">A transformer language model trained on financial news reads each headline and decides if it sounds positive, neutral or negative. The model downloads once (~80 MB), then runs on your device. No data is sent to a server.</p>
@@ -119,49 +122,118 @@
 
       <section class="card">
         <div class="card-head">
-          <h3>📰 Latest news</h3>
-          <button class="ghost small-btn" id="stopSpeech">⏹ Stop reading</button>
+          <h3><i data-icon="news"></i>Latest news</h3>
+          <button class="ghost small-btn" id="stopSpeech"><i data-icon="stop"></i>Stop reading</button>
         </div>
         <div id="newsContainer"></div>
       </section>
     </main>
 
     <section class="features container">
-      <div class="feature"><span>🌦️</span><h4>Market weather</h4><p>Trend, volatility and news mood turned into a simple forecast.</p></div>
-      <div class="feature"><span>🤖</span><h4>AI sentiment</h4><p>A transformer model reads headlines right in your browser.</p></div>
-      <div class="feature"><span>⚡</span><h4>Volatility score</h4><p>Based on how much the price swings day to day.</p></div>
-      <div class="feature"><span>🎤</span><h4>Listen to news</h4><p>Text-to-speech reads headlines aloud for accessibility.</p></div>
+      <div class="feature"><i class="feature-icon" data-icon="cloudsun"></i><h4>Market weather</h4><p>Trend, volatility and news mood turned into a simple forecast.</p></div>
+      <div class="feature"><i class="feature-icon" data-icon="ai"></i><h4>On-device AI</h4><p>A transformer model reads headlines right in your browser.</p></div>
+      <div class="feature"><i class="feature-icon" data-icon="bolt"></i><h4>Volatility score</h4><p>Based on how much the price swings day to day.</p></div>
+      <div class="feature"><i class="feature-icon" data-icon="speaker"></i><h4>Listen to news</h4><p>Text-to-speech reads headlines aloud for accessibility.</p></div>
     </section>
   </div>
 
   <!-- =================== START EARLY TAB =================== -->
   <div id="tab-learn" class="container hidden">
-    <header class="hero small-hero">
-      <h1>🌱 Start Early</h1>
-      <p class="sub">Money basics for kids, students and first-time learners. Learn the ideas first — there's no buying or selling here.</p>
+    <header class="learn-hero">
+      <!-- Captain Coin flies across the hero (original character) -->
+      <div class="flyer" aria-hidden="true">
+        <svg viewBox="0 0 130 100" width="130" height="100">
+          <path class="cape" d="M48 40 C30 30 12 34 2 26 C8 46 10 62 4 78 C20 70 36 72 50 64 Z" fill="#ef4444" stroke="#b91c1c" stroke-width="2"/>
+          <circle cx="68" cy="50" r="30" fill="#fbbf24" stroke="#d97706" stroke-width="3"/>
+          <circle cx="68" cy="50" r="23" fill="none" stroke="#d97706" stroke-width="1.5" stroke-dasharray="3 3"/>
+          <path d="M42 42 Q68 30 94 42 L92 50 Q68 40 44 50 Z" fill="#1e293b"/>
+          <ellipse cx="58" cy="45" rx="5" ry="4" fill="#fff"/><ellipse cx="78" cy="45" rx="5" ry="4" fill="#fff"/>
+          <circle cx="59" cy="45.5" r="2" fill="#1e293b"/><circle cx="79" cy="45.5" r="2" fill="#1e293b"/>
+          <path d="M58 60 Q68 68 78 60" fill="none" stroke="#92400e" stroke-width="3" stroke-linecap="round"/>
+          <path d="M96 52 L116 40" stroke="#d97706" stroke-width="5" stroke-linecap="round"/>
+          <circle cx="119" cy="38" r="6" fill="#fbbf24" stroke="#d97706" stroke-width="2.5"/>
+          <text x="68" y="80" text-anchor="middle" font-size="12" font-weight="800" fill="#92400e" font-family="sans-serif">₹</text>
+        </svg>
+      </div>
+
+      <div class="learn-hero-text">
+        <span class="hero-pill kid-pill">For kids, students &amp; first-timers</span>
+        <h1>Start Early</h1>
+        <p class="sub">Learn how money grows with Penny and Captain Coin. Ideas first — there's no buying or selling here.</p>
+      </div>
+
+      <!-- Penny the Piggy Bank (original character) -->
+      <div class="penny-wrap" aria-hidden="true">
+        <div class="bubble">Hi, I'm Penny! Small savings + lots of time = big results.</div>
+        <svg class="penny" viewBox="0 0 150 125" width="190" height="158">
+          <circle class="drop-coin" cx="72" cy="6" r="7" fill="#fbbf24" stroke="#d97706" stroke-width="2"/>
+          <path d="M24 64 q-14 -4 -8 -14 q6 -6 10 2 q3 6 -6 6" fill="none" stroke="#db2777" stroke-width="3" stroke-linecap="round"/>
+          <rect x="44" y="92" width="12" height="20" rx="5" fill="#f472b6"/><rect x="62" y="95" width="12" height="20" rx="5" fill="#f472b6"/>
+          <rect x="86" y="95" width="12" height="20" rx="5" fill="#f472b6"/><rect x="102" y="92" width="12" height="20" rx="5" fill="#f472b6"/>
+          <ellipse cx="76" cy="66" rx="52" ry="38" fill="#f9a8d4" stroke="#db2777" stroke-width="2.5"/>
+          <rect x="62" y="30" width="22" height="5" rx="2.5" fill="#9d174d"/>
+          <path d="M100 36 L112 20 L116 42 Z" fill="#f472b6" stroke="#db2777" stroke-width="2" stroke-linejoin="round"/>
+          <circle cx="104" cy="56" r="4.5" fill="#1f2937"/><circle cx="105.5" cy="54.5" r="1.4" fill="#fff"/>
+          <circle cx="104" cy="74" r="6" fill="#fb7185" opacity=".45"/>
+          <ellipse cx="124" cy="68" rx="13" ry="11" fill="#f472b6" stroke="#db2777" stroke-width="2.5"/>
+          <ellipse cx="120" cy="68" rx="2" ry="3" fill="#9d174d"/><ellipse cx="128" cy="68" rx="2" ry="3" fill="#9d174d"/>
+          <path d="M106 84 Q114 90 122 84" fill="none" stroke="#9d174d" stroke-width="2.5" stroke-linecap="round"/>
+          <g class="wave"><rect x="118" y="78" width="11" height="22" rx="5" fill="#f472b6" stroke="#db2777" stroke-width="2"/></g>
+        </svg>
+      </div>
     </header>
 
-    <section class="card safety">
-      <h3>🛡️ Before you start</h3>
-      <ul>
-        <li>Learn <strong>with a parent or guardian</strong>. Kids shouldn't open accounts or invest on their own.</li>
-        <li>Only ever think about money you <strong>won't need soon</strong>. Pocket money for school stays for school.</li>
-        <li>Nobody can tell what a price will do tomorrow — not FinTracker, not an AI, not a friend online.</li>
-        <li>If someone promises "guaranteed double money", it's a scam. Tell an adult.</li>
-      </ul>
+    <!-- Class rules on a chalkboard -->
+    <section class="board-wrap">
+      <div class="chalkboard">
+        <h3 class="chalk-title">Money rules for young investors</h3>
+        <ol class="chalk-list">
+          <li>Learn <u>with a parent or guardian</u>. Kids don't open accounts or invest alone.</li>
+          <li>Only think about money you <u>won't need soon</u>. School money stays for school.</li>
+          <li>Nobody knows tomorrow's price — not FinTracker, not an AI, not a friend online.</li>
+          <li>"Guaranteed double money" = a scam. Tell an adult!</li>
+        </ol>
+        <div class="chalk-tray" aria-hidden="true"><span class="chalk"></span><span class="chalk pink"></span><span class="duster"></span></div>
+      </div>
+      <!-- Captain Coin, pointing at the board -->
+      <svg class="board-captain" viewBox="0 0 120 130" width="120" height="130" aria-hidden="true">
+        <path d="M18 70 Q2 92 8 120 Q30 104 44 112 Q40 90 50 74 Z" fill="#ef4444" stroke="#b91c1c" stroke-width="2"/>
+        <circle cx="60" cy="68" r="30" fill="#fbbf24" stroke="#d97706" stroke-width="3"/>
+        <circle cx="60" cy="68" r="23" fill="none" stroke="#d97706" stroke-width="1.5" stroke-dasharray="3 3"/>
+        <path d="M34 60 Q60 48 86 60 L84 68 Q60 58 36 68 Z" fill="#1e293b"/>
+        <ellipse cx="50" cy="63" rx="5" ry="4" fill="#fff"/><ellipse cx="70" cy="63" rx="5" ry="4" fill="#fff"/>
+        <circle cx="48" cy="63.5" r="2" fill="#1e293b"/><circle cx="68" cy="63.5" r="2" fill="#1e293b"/>
+        <path d="M50 78 Q60 86 70 78" fill="none" stroke="#92400e" stroke-width="3" stroke-linecap="round"/>
+        <g class="pointer"><path d="M34 74 L4 40" stroke="#92400e" stroke-width="4" stroke-linecap="round"/><circle cx="4" cy="40" r="3" fill="#fde68a"/></g>
+        <path d="M48 98 L44 122 M72 98 L76 122" stroke="#d97706" stroke-width="5" stroke-linecap="round"/>
+      </svg>
     </section>
 
     <!-- Weather explained -->
     <section class="card">
-      <h3>🌦️ How to read the market weather</h3>
+      <h3>How to read the market weather</h3>
       <p class="muted small">On the Tracker tab, every stock gets a weather report. Here's what each one means — and what to learn from it (not what to buy!).</p>
       <div class="weather-guide" id="weatherGuide"></div>
     </section>
 
     <!-- Savings jar -->
     <section class="card">
-      <h3>🫙 Savings jar calculator</h3>
-      <p class="muted small">See how small amounts grow when you save every month and give them time.</p>
+      <div class="jar-head">
+        <div>
+          <h3>Savings jar calculator</h3>
+          <p class="muted small">See how small amounts grow when you save every month and give them time.</p>
+        </div>
+        <!-- Jarvis the savings jar: coins rise and fall inside -->
+        <svg class="jarvis" viewBox="0 0 80 96" width="72" height="86" aria-hidden="true">
+          <defs><clipPath id="jarClip"><rect x="12" y="22" width="56" height="66" rx="14"/></clipPath></defs>
+          <rect x="12" y="22" width="56" height="66" rx="14" fill="#e0f2fe" stroke="#0284c7" stroke-width="2.5"/>
+          <g clip-path="url(#jarClip)"><rect class="jar-fill" x="12" y="60" width="56" height="40" fill="#fbbf24"/>
+            <circle cx="24" cy="66" r="4" fill="#f59e0b"/><circle cx="40" cy="70" r="4" fill="#f59e0b"/><circle cx="56" cy="66" r="4" fill="#f59e0b"/></g>
+          <rect x="18" y="12" width="44" height="12" rx="4" fill="#0284c7"/>
+          <circle cx="31" cy="44" r="3.5" fill="#0f172a"/><circle cx="49" cy="44" r="3.5" fill="#0f172a"/>
+          <path d="M32 52 Q40 58 48 52" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </div>
       <div class="calc">
         <label>Save every month (₹)
           <input type="number" id="jarMonthly" value="500" min="0" step="50" />
@@ -193,14 +265,14 @@
 
     <!-- Quiz -->
     <section class="card">
-      <h3>🧠 Quick quiz</h3>
+      <h3>Quick quiz</h3>
       <div id="quiz"></div>
       <p id="quizScore" class="small"></p>
     </section>
 
     <!-- Glossary -->
     <section class="card">
-      <h3>📖 Word bank</h3>
+      <h3>Word bank</h3>
       <dl class="glossary" id="glossary"></dl>
     </section>
   </div>
@@ -211,7 +283,7 @@
     <p class="muted small">Prices: Alpha Vantage. News: Hacker News search &amp; GDELT. AI: Transformers.js. For learning only — not financial advice.</p>
     <div class="snow" id="snow" aria-hidden="true"></div>
     <div class="translate-box">
-      <p>🌐 Read FinTracker in your language</p>
+      <p><i data-icon="globe"></i>Read FinTracker in your language</p>
       <div id="google_translate_element"></div>
     </div>
   </footer>
@@ -239,6 +311,7 @@
   <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" defer></script>
 
   <script src="config.js"></script>
+  <script src="decor.js"></script>
   <script src="script.js"></script>
   <script src="learn.js"></script>
   <script type="module" src="ai.js"></script>

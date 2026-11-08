@@ -109,11 +109,18 @@ function applyTheme(choice) {
     theme = hour >= 7 && hour < 19 ? "light" : "dark";
   }
   document.documentElement.setAttribute("data-theme", theme);
+  document.documentElement.setAttribute("data-mode", choice); // which button is chosen (auto/light/dark/warm)
+  document.querySelectorAll("#themeSwitch button").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b.dataset.mode === choice));
+  });
   if (chart) renderChart(); // redraw chart with theme colours
+  window.dispatchEvent(new CustomEvent("themechange", { detail: { choice, theme } }));
 }
-$("themeSelect").addEventListener("change", (e) => {
-  storageSet("ft_theme", e.target.value);
-  applyTheme(e.target.value);
+document.querySelectorAll("#themeSwitch button").forEach((b) => {
+  b.addEventListener("click", () => {
+    storageSet("ft_theme", b.dataset.mode);
+    applyTheme(b.dataset.mode);
+  });
 });
 
 /* ---------- tabs ---------- */
@@ -420,7 +427,7 @@ function renderWeather() {
   const key = computeWeather(state.stats, mood);
   const w = WEATHER_TYPES[key];
   $("weatherCard").dataset.weather = key;
-  $("weatherIcon").textContent = w.icon;
+  $("weatherIcon").innerHTML = WEATHER_SVG[key]; // static SVG strings from decor.js
   $("weatherTitle").textContent = w.title + (state.isSample ? " (sample data)" : "");
   $("weatherText").textContent = w.meaning + " 🌱 Learning tip: " + w.lesson;
   const moodText = mood === null ? "not measured yet — run the AI reader below" : mood.toFixed(2) + " (AI model)";
@@ -489,7 +496,7 @@ function setSentiment(avg, count) {
   if (avg === null) {
     $("sentBadge").textContent = "Not measured yet";
     $("sentBadge").className = "badge";
-    $("sentText").textContent = "Use the 🤖 AI headline reader below to measure the mood of the news.";
+    $("sentText").textContent = "Use the AI headline reader below to measure the mood of the news.";
     $("sentMarker").style.left = "50%";
     return;
   }
@@ -538,7 +545,7 @@ function renderNews(articles, isSample) {
     actions.className = "news-actions";
     const listen = document.createElement("button");
     listen.className = "ghost small-btn";
-    listen.textContent = "🔊 Listen";
+    listen.innerHTML = ICONS.speaker + "Listen";
     listen.addEventListener("click", () => speak(n.title + ". " + (n.summary || "")));
     actions.appendChild(listen);
     if (n.url && !isSample) {
@@ -568,7 +575,7 @@ function updateAiButton() {
   const btn = $("aiBtn");
   if (!window.FinAI) { btn.disabled = true; btn.textContent = "Loading AI engine…"; return; }
   btn.disabled = !state.articles.length;
-  btn.textContent = state.articles.length ? "🤖 Read these headlines with AI" : "Search a stock first";
+  btn.textContent = state.articles.length ? "Analyse headlines with AI" : "Search a stock first";
 }
 window.addEventListener("finai-ready", updateAiButton);
 // If the AI library can't load at all (offline / blocked), say so instead of waiting forever
@@ -594,7 +601,7 @@ $("aiBtn").addEventListener("click", async () => {
     document.querySelectorAll("#newsContainer .ai-tag").forEach((tag, i) => {
       const r = results[i];
       if (!r) return;
-      tag.textContent = " · 🤖 AI: " + r.label + " (" + Math.round(r.confidence * 100) + "% sure)";
+      tag.textContent = " · AI: " + r.label + " (" + Math.round(r.confidence * 100) + "% sure)";
       tag.className = "ai-tag " + (r.score > 0.15 ? "up" : r.score < -0.15 ? "down" : "");
     });
 
@@ -607,7 +614,7 @@ $("aiBtn").addEventListener("click", async () => {
 
     $("aiResult").textContent = "Model: " + model + ". " + counts.positive + " positive, " + counts.neutral + " neutral, " +
       counts.negative + " negative → overall " + sentimentLabel(avg).text.toLowerCase() + " (" + avg.toFixed(2) + "). The weather report now includes this news mood.";
-    btn.textContent = "✅ Done — run again";
+    btn.textContent = "Done — run again";
   } catch (err) {
     console.error(err);
     $("aiProgress").classList.add("hidden");
@@ -658,10 +665,9 @@ function sampleNews(symbol) {
 /* ---------- start-up ---------- */
 (function init() {
   const theme = storageGet("ft_theme", "auto");
-  $("themeSelect").value = theme;
   applyTheme(theme);
   renderChips("popularList", POPULAR, "Popular:");
-  renderChips("indiaList", POPULAR_INDIA, "🇮🇳 India:");
+  renderChips("indiaList", POPULAR_INDIA, "India:");
   renderChips("recentList", storageGet("ft_recent", []), "Recent:");
   makeSnow();
 })();

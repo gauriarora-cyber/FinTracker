@@ -17,13 +17,13 @@ It was built for the **Call2Code Hackathon** and includes **text-to-speech** so 
 |---|---|
 | 🌦️ **Market weather report** | Turns trend, volatility and news mood into ☀️ Sunny, ⛅ Cloudy, 🌧️ Rainy or ⛈️ Stormy, with a plain-English explanation and a learning tip |
 | 🤖 **AI headline reader** | A DistilRoBERTa transformer fine-tuned on financial news runs **in the browser** with Transformers.js (ONNX + WebAssembly). It labels each headline positive, neutral or negative and averages them into the news mood. No server, and no data leaves the device |
-| 🌱 **Start Early tab** | For kids and first-time learners: safety rules, a guide to the weather report, a ₹ savings jar calculator showing compounding, a 5-question quiz and a word bank |
+| 🌱 **Start Early tab** | For kids and first-time learners, with original animated characters (Penny the Piggy Bank, Captain Coin and Jarvis the Jar): money rules on a chalkboard, a guide to the weather report, a ₹ savings jar calculator showing compounding, a 5-question quiz and a word bank |
 | 📊 **Price trend (7D / 30D / 90D)** | Daily prices from Alpha Vantage, drawn with Chart.js. Shows period high, low, return and average volume |
 | ⚡ **Volatility score** | Standard deviation of daily returns, annualised (× √252). Labelled Low / Moderate / High |
 | 📰 **Latest news** | Recent headlines about the company from [Hacker News search](https://hn.algolia.com/api), with the [GDELT](https://www.gdeltproject.org/) news database as a backup. Neither needs a key |
 | 🎤 **Listen to news** | The Web Speech API reads each headline and summary aloud |
 | 🔎 **Any stock, US or Indian** | Search any symbol. Indian stocks use `.BSE` (e.g. `RELIANCE.BSE`) and show prices in ₹. One-click chips for popular US and Indian stocks, plus recent searches |
-| 🌓 **Themes** | Dark, light, eye comfort, or **auto** (light during the day, dark at night, based on the device clock) |
+| 🌓 **4 colour modes** | Auto (light by day, dark by night), light, dark and eye comfort, each with its own animated background: glowing currency signs (dark), mini charts (light), falling ₹ coins (eye comfort) and a sun or moon crossing the sky (auto). Animations switch off for people who turn on "reduce motion" |
 | 🌐 **Multilingual** | Google Translate widget |
 | 🧪 **Sample-data fallback** | If the free API limit is reached, the app shows clearly labelled sample data instead of breaking |
 
@@ -54,6 +54,8 @@ style.css    themes and responsive layout
 config.js    default (demo) API key
 script.js    data fetching, calculations, weather report, chart, news, speech
 ai.js        in-browser AI sentiment model (Transformers.js)
+decor.js     icons, weather icons, floating background per colour mode
+icon.svg     app logo / favicon
 learn.js     Start Early tab: calculator, quiz, word bank
 screenshots/ README images
 ```

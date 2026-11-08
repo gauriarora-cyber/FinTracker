@@ -96,7 +96,7 @@
   ["jarMonthly", "jarStart", "jarEnd", "jarRate"].forEach((id) => $(id).addEventListener("input", calcJar));
   // Chart needs a visible canvas to size itself, so draw when the tab opens
   window.addEventListener("tabchange", (e) => { if (e.detail === "learn") calcJar(); });
-  $("themeSelect").addEventListener("change", () => { if (!$("tab-learn").classList.contains("hidden")) calcJar(); });
+  window.addEventListener("themechange", () => { if (!$("tab-learn").classList.contains("hidden")) calcJar(); });
 
   /* ---------- 3. Quiz ---------- */
   const QUIZ = [
