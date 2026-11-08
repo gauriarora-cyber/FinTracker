@@ -15,6 +15,7 @@ It was built for the **Call2Code Hackathon** and includes **text-to-speech** so 
 
 | Feature | How it works |
 |---|---|
+| ✨ **Splash screen** | The FinTracker wordmark arrives as 5 slices from different 3D depths (CSS 3D transforms) and joins together. About 2 seconds, skippable, once per visit, skipped for "reduce motion" |
 | 🌦️ **Market weather report** | Turns trend, volatility and news mood into ☀️ Sunny, ⛅ Cloudy, 🌧️ Rainy or ⛈️ Stormy, with a plain-English explanation and a learning tip |
 | 🤖 **AI headline reader** | A DistilRoBERTa transformer fine-tuned on financial news runs **in the browser** with Transformers.js (ONNX + WebAssembly). It labels each headline positive, neutral or negative and averages them into the news mood. No server, and no data leaves the device |
 | 🌱 **Start Early tab** | For kids and first-time learners, with original animated characters (Penny the Piggy Bank, Captain Coin and Jarvis the Jar): money rules on a chalkboard, a guide to the weather report, a ₹ savings jar calculator showing compounding, a 5-question quiz and a word bank |
